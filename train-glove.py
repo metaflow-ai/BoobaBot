@@ -12,5 +12,5 @@ model = tf_glove.GloVeModel(embedding_size=200, context_size=10, learning_rate=1
 print('Fit to corpus and compute graph for training')
 model.fit_to_corpus(corpus)
 print('Start Training')
-model.train(num_epochs=500, log_dir='results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
+model.train(num_epochs=500, log_dir=dir + '/results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
 model.print_sum_up()
