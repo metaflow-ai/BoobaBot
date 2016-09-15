@@ -1,7 +1,8 @@
-import time
+import time, os
 import tf_glove
 
-with open('crawler/data/results.txt', 'r') as f:
+dir = os.path.dirname(os.path.realpath(__file__))
+with open(dir + '/crawler/data/results.txt', 'r') as f:
     corpus = f.readlines()
     for i,line in enumerate(corpus):
         corpus[i] = line.lower().strip().split(' ')
