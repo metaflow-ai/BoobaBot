@@ -30,8 +30,8 @@ with open(dir + '/crawler/data/results.txt', 'r') as f:
 
 for i in range(10):
     # Random search
-    embedding_size = int(np.random.random_integers(50,150))
-    context_size = int(np.random.random_integers(1,10))
+    embedding_size = int(np.random.random_integers(50,100))
+    context_size = int(np.random.random_integers(5,8))
 
     print('Init the GloVe model')
     model = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
@@ -39,4 +39,4 @@ for i in range(10):
     model.fit_to_corpus(corpus)
     print('vocab_size %d' % (model.vocab_size))
     print('Start Training')
-    model.train(num_epochs=60, log_dir=dir + '/results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
+    model.train(num_epochs=500, log_dir=dir + '/results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
