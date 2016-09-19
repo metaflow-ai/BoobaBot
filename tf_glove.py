@@ -61,7 +61,7 @@ class GloVeModel():
 
     def __build_graph(self):
         self.__graph = tf.Graph()
-        with self.__graph.as_default(), self.__graph.device(_device_for_node):
+        with self.__graph.as_default():
             count_max = tf.constant([self.cooccurrence_cap], dtype=tf.float32,
                                     name='max_cooccurrence_count')
             scaling_factor = tf.constant([self.scaling_factor], dtype=tf.float32,
@@ -239,13 +239,6 @@ def _window(region, start_index, end_index):
     last_index = len(region) + 1
     selected_tokens = region[max(start_index, 0):min(end_index, last_index) + 1]
     return selected_tokens
-
-
-def _device_for_node(n):
-    if n.type == "MatMul":
-        return "/gpu:0"
-    else:
-        return "/cpu:0"
 
 
 def _batchify(batch_size, *sequences):
