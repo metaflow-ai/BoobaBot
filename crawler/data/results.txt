@@ -496,7 +496,7 @@ Mon initiale sur ma bague puis sur ta joue
 Parce que t'es naze et tu perces et tu t'la joues
 Mon rap t'attrape par l'col, nouvelle école
 Mes frères déconnent, nouvelle école
-Passe-moi la beuh qu'j'décolle, nouvelle école. {}
+Passe-moi la beuh qu'j'décolle, nouvelle école.
 Je change tout, de cours, de classe, j'garde les mêmes fous
 Fouts autant la merde jusqu'à New york zoo
 Mazalaza s'dit intello d'sa B.O. kho
@@ -5792,7 +5792,6 @@ La jeunesse en dé-T-R-esse
 En France qui roule en CLS, attire les CRS
 Rebelle comme Casamançais Mendy, Gomis
 Nos flingues sont plus gros qu'ceux d'la police
-{Maybach Music}
 I ride for my dawgz and I swear to God
 From a scrub on the corner, webs on the wall
 I used to be that youngin' on a air mattress
@@ -21320,7 +21319,6 @@ La jeunesse en dé-T-R-esse
 En France qui roule en CLS, attire les CRS
 Rebelle comme Casamançais Mendy, Gomis
 Nos flingues sont plus gros qu'ceux d'la police
-{Maybach Music}
 I ride for my dawgz and I swear to God
 From a scrub on the corner, webs on the wall
 I used to be that youngin' on a air mattress
@@ -28087,7 +28085,7 @@ Mon initiale sur ma bague puis sur ta joue
 Parce que t'es naze et tu perces et tu t'la joues
 Mon rap t'attrape par l'col, nouvelle école
 Mes frères déconnent, nouvelle école
-Passe-moi la beuh qu'j'décolle, nouvelle école. {}
+Passe-moi la beuh qu'j'décolle, nouvelle école.
 Je change tout, de cours, de classe, j'garde les mêmes fous
 Fouts autant la merde jusqu'à New york zoo
 Mazalaza s'dit intello d'sa B.O. kho

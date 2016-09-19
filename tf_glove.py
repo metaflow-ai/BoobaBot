@@ -129,7 +129,6 @@ class GloVeModel():
                 summary_writer = tf.train.SummaryWriter(log_dir, session.graph)
             tf.initialize_all_variables().run()
             for epoch in range(num_epochs):
-                print('Epoch: %d' % epoch)
                 shuffle(batches)
                 for batch_index, batch in enumerate(batches):
                     i_s, j_s, counts = batch
@@ -201,13 +200,20 @@ class GloVeModel():
         labels = self.words[:word_count]
         return _plot_with_labels(low_dim_embs, labels, path, size)
 
-    def print_sum_up(self):
-        print('embedding_dims: %d x %d' % (self.__embeddings.shape[0], self.__embeddings.shape[1]))
-
     def save(self, filepath):
         data = {
+            'learning_config':{
+                'embedding_size': self.embedding_size,
+                'max_vocab_size': self.max_vocab_size,
+                'min_occurrences': self.min_occurrences,
+                'scaling_factor': self.scaling_factor,
+                'cooccurrence_cap': self.cooccurrence_cap,
+                'batch_size': self.batch_size,
+                'learning_rate': self.learning_rate,
+                'left_context': self.left_context,
+                'right_context': self.right_context
+            },
             'vocab_size': self.vocab_size,
-            'embedding_size': self.embedding_size,
             'word_to_id': self.__word_to_id,
             'embed' : self.__embeddings.tolist()
         }
