@@ -44,3 +44,5 @@ __pycache__.*
 # App
 env
 results/*
+crawler/data/results.*
+crawler/data/raw_results.*
