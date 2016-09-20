@@ -46,3 +46,5 @@ env
 results/*
 crawler/data/results.*
 crawler/data/raw_results.*
+dataviz/old
+dataviz/env
