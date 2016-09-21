@@ -1,46 +1,59 @@
-var express = require('express');
 var fs = require('fs');
 var request = require('request');
 var cheerio = require('cheerio');
-var app     = express();
 var readline = require('readline');
 
-app.get('/scrape', function(req, res){
-    var rl = readline.createInterface({
-      input: fs.createReadStream('./crawler/data/sources.txt')
-    });
 
-    rl.on('line', function(line) {
+raw_output_file = './crawler/data/raw_results.txt'
+output_file = './crawler/data/results.txt'
 
-      var url = line.replace(/^\s+|\s+$/g, '');
-      request(url, function(error, response, html){
+// Cleaning existing files
+if (fs.existsSync(raw_output_file)) {
+  fs.unlink(raw_output_file)
+}
+if (fs.existsSync(output_file)) {
+  fs.unlink(output_file)
+}
 
-          if(!error){
-            console.log(url);
-              var $ = cheerio.load(html);
-              var content = $('.lyrics').text();
-              content = content.replace(/^\s+|\s+$/g, '');
-
-              fs.appendFile('./crawler/data/results.txt', content, function(err) {
-                if (err) {
-                  console.log('ERROR');
-                }
-              });
-          } else {
-            console.log('error :/');
-          }
-      })
-    });
-
-    rl.on('close', function() {
-      // res.send('FINISHED');
-    })
-
+var rl = readline.createInterface({
+  input: fs.createReadStream('./crawler/data/sources_all.txt')
 });
 
+rl.on('line', function(url) {
+  var url = url.trim();
+  setTimeout(function(){
+    request(url, function(error, response, html){
+      if(error){
+        console.log('!!!Error in request for ' + url)
+        return
+      }
 
-app.listen('8081');
+      var $ = cheerio.load(html);
+      var content = $('.lyrics').text();
+      console.log("HTML received for " + url + "data length:" + content.length);
 
-console.log('Magic happens on port 8081');
 
-exports = module.exports = app;
+      fs.appendFile(raw_output_file, content, function(err) {
+        if (err) {
+          console.log('ERROR outputing raw data:', err);
+          return
+        }
+        content = content.replace(/^\s+|\s+$/gi, '');
+        content = content.replace(/.*Genius.*|.*googletag.*/gi, '');
+        content = content.replace(/\[.*\]/gi, '');
+
+        fs.appendFile(output_file, content, function(err) {
+          if (err) {
+            console.log('ERROR outputing cleaned data:', err);
+          }
+        });
+      });
+    })
+  }, Math.random() * 30000)
+
+  
+});
+
+rl.on('close', function() {
+  // res.send('FINISHED');
+})
