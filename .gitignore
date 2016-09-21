@@ -47,3 +47,9 @@ results/*
 
 dataviz/old
 dataviz/env
+
+app/node_modules
+app/coverage
+app/build
+app/.DS_Store
+app/npm-debug.log
