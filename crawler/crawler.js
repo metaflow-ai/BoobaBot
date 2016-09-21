@@ -16,38 +16,42 @@ if (fs.existsSync(output_file)) {
 }
 
 var rl = readline.createInterface({
-  input: fs.createReadStream('./crawler/data/sources.txt')
+  input: fs.createReadStream('./crawler/data/sources_all.txt')
 });
 
 rl.on('line', function(url) {
   var url = url.trim();
-  request(url, function(error, response, html){
-
-    if(error){
-      console.log('!!!Error in request for ' + url)
-      return
-    }
-
-    console.log("HTML received for " + url);
-    var $ = cheerio.load(html);
-    var content = $('.lyrics').text();
-
-    fs.appendFile(raw_output_file, content, function(err) {
-      if (err) {
-        console.log('ERROR outputing raw data:', err);
+  setTimeout(function(){
+    request(url, function(error, response, html){
+      if(error){
+        console.log('!!!Error in request for ' + url)
         return
       }
-      content = content.replace(/^\s+|\s+$/gi, '');
-      content = content.replace(/.*Genius.*|.*googletag.*/gi, '');
-      content = content.replace(/\[.*\]/gi, '');
 
-      fs.appendFile(output_file, content, function(err) {
+      var $ = cheerio.load(html);
+      var content = $('.lyrics').text();
+      console.log("HTML received for " + url + "data length:" + content.length);
+
+
+      fs.appendFile(raw_output_file, content, function(err) {
         if (err) {
-          console.log('ERROR outputing cleaned data:', err);
+          console.log('ERROR outputing raw data:', err);
+          return
         }
+        content = content.replace(/^\s+|\s+$/gi, '');
+        content = content.replace(/.*Genius.*|.*googletag.*/gi, '');
+        content = content.replace(/\[.*\]/gi, '');
+
+        fs.appendFile(output_file, content, function(err) {
+          if (err) {
+            console.log('ERROR outputing cleaned data:', err);
+          }
+        });
       });
-    });
-  })
+    })
+  }, Math.random() * 30000)
+
+  
 });
 
 rl.on('close', function() {

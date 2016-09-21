@@ -10,10 +10,17 @@ textfile = dir + '/crawler/data/results.txt'
 corpus = clean_textfile(textfile)
 corpus = get_corpus_with_paragraph(corpus)
     
-nbTokens = len(set([y for x in corpus for y in x]))
+flatten_corpus = [y for x in corpus for y in x]
+print("%d words found" % len(flatten_corpus))
+nbTokens = len(set(flatten_corpus))
 print('%d tokens found' % nbTokens)
+chars = []
+for word in flatten_corpus:
+    chars += list(word)
+chars = set(chars)
+print(chars)
 
-# Print('Dumping ')
+# print('Dumping ')
 # cleaned_textfile = dir + '/crawler/data/results_clean.txt'
 # dump_corpus(corpus, cleaned_textfile)
     
