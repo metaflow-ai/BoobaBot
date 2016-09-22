@@ -32,10 +32,12 @@ def plot_embedding_k_mean(X, k_means_labels, k_means_cluster_centers):
     plt.figure()
     ax = plt.subplot(111)
 
-    # Generate 10 colors
-    colors = matplotlib.cm.rainbow(np.linspace(0, 1, 10))
+    finalClusters = len(k_means_cluster_centers)
 
-    for k, col in zip(range(10), colors):
+    # Generate 10 colors
+    colors = matplotlib.cm.rainbow(np.linspace(0, 1, finalClusters))
+
+    for k, col in zip(range(finalClusters), colors):
         my_members = k_means_labels == k
         cluster_center = k_means_cluster_centers[k]
         ax.plot(X[my_members, 0], X[my_members, 1], 'w', markerfacecolor=col, marker='.', markersize=3)
@@ -59,7 +61,7 @@ with open('data.json') as jsonData:
 
     mapping = rawData['word_to_id']
     X = rawData['embed']
-    X = X[10:500]
+    X = X[1000:2000]
 
     print('Computing PCA')
     pca = decomposition.PCA(n_components=50)
@@ -72,7 +74,7 @@ with open('data.json') as jsonData:
     print('Computed tSNE')
 
     print('K-MEAN')
-    kMeans = cluster.KMeans(init='k-means++', n_clusters=10, n_init=10)
+    kMeans = cluster.KMeans(init='k-means++', n_clusters=25, n_init=10)
     kMeans.fit(X_tsne)
 
     k_means_labels = kMeans.labels_

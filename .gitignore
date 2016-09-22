@@ -41,7 +41,7 @@ jspm_packages
 __pycache__.*
 *.pyc
 
-# App
+# App python
 env
 results/*
 crawler/data/results.*
@@ -49,3 +49,10 @@ crawler/data/raw_results.*
 dataviz/old
 dataviz/env
 dataviz/data
+
+# App Node.JS
+app/node_modules
+app/coverage
+app/build
+app/.DS_Store
+app/npm-debug.log
