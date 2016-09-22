@@ -1,9 +1,16 @@
-import re
+import re, os, nltk, json
+import numpy as np 
+
+from nltk.stem.snowball import FrenchStemmer, SnowballStemmer
+from nltk.tokenize import WordPunctTokenizer
+
+# sentenceTokenizer = nltk.data.load('tokenizers/punkt/PY3/french.pickle')
+stemmer = SnowballStemmer("french")
+tokenizer = WordPunctTokenizer()
+# stemmer = FrenchStemmer()
 
 # Takes a string and return a list of words
 def clean_text(text):
-    text = text.lower()
-    text = re.sub(r'(\w)\'(\w)', r' \1\' \2', text)
     text = re.sub(r'\{.*}', '', text)
     text = re.sub(r'æ', 'ae', text)
     text = re.sub(r'œ', 'oe', text)
@@ -14,20 +21,13 @@ def clean_text(text):
     text = re.sub(r'ë', 'e', text)
     text = re.sub(r'ñ', 'n', text)
     text = re.sub(r'[ûü]', 'u', text)
-    text = re.sub(r'\.\.\.', ' ', text)
-    text = re.sub(r'([\.,?;:!"])', r' \1 ', text)
-    # text = re.sub(r'`|~|!|@|#|\$|%|\^|&|\*|\(|\)|_|\+|=|<|>|\?|/|\.|,|;|:|"|\\', '', text)
-    # text = re.sub(r'[`~!@#\$%\^&\*\(\)\[\]_\+=<>\?/\.,;:"\\]', '', text)
+    # text = re.sub(r'\.\.\.', ' ', text)
     text = re.sub(r'[^a-zA-Z0-9 àáâãäçèéêëìíîïñòóôõöùúûüýÿ\'"\.,?;:\'"!-]', '', text)
     text = re.sub(r'(x|X)\d+', '', text) # Remove x2, x3 etc.
     
-    
-    # text = ''.join(c for c in text if (c.isalnum()) or c == ' ')
-    cleaned_text = text \
-        .lower() \
-        .strip() \
-        .split(' ')
-    return cleaned_text
+    tokens = tokenizer.tokenize(text)
+    cleaned_tokens = [stemmer.stem(w) for w in tokens]
+    return cleaned_tokens
 
 def clean_textfile(fullpath):
     with open(fullpath, 'r') as f:
@@ -40,12 +40,15 @@ def get_corpus_with_paragraph(corpus):
     corpus_para = []
     region = []
     for line in corpus:
-        if len(line) == 1 and line[0] == '':
+        if len(line) == 0:
             if len(region) != 0:
                 corpus_para.append(region)
                 region = []
             continue
         region += line
+
+    if len(region) != 0:
+        corpus_para.append(region)
 
     return corpus_para
 
@@ -55,3 +58,24 @@ def dump_corpus(corpus, fullpath):
         new_text = '\n'.join(new_text)
 
         f.write(new_text)
+
+def evaluate_recall(y, labels, k=1):
+    num_examples = float(len(y))
+    num_correct = 0
+    for preds, label in zip(y, labels):
+        if label in preds[:k]:
+            num_correct += 1
+    return num_correct / num_examples
+
+def predict_random(utterances):
+    return np.random.choice(len(utterances),10, replace=False)
+
+def print_learningconfig():
+    for subdir, dirs, files in os.walk('results'):
+        for file in files:
+            if file == 'data.json':
+                path = os.path.join(subdir, file)
+                print(path)
+                with open(path) as jsonData:
+                    data = json.load(jsonData)
+                    print(data['learning_config'])
