@@ -33,6 +33,6 @@ for i in range(10):
     model = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
     print('Fit to corpus and compute graph for training')
     model.fit_to_corpus(corpus)
-    print('vocab_size %d' % (model.vocab_size))
+    print('final vocab_size %d' % (model.vocab_size))
     print('Start Training')
-    model.train(num_epochs=500, log_dir=dir + '/results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
+    model.train(num_epochs=80, log_dir=dir + '/results/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
