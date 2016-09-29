@@ -4,6 +4,7 @@ import numpy as np
 from nltk.stem.snowball import FrenchStemmer, SnowballStemmer
 from nltk.tokenize import WordPunctTokenizer
 
+
 # sentenceTokenizer = nltk.data.load('tokenizers/punkt/PY3/french.pickle')
 stemmer = SnowballStemmer("french")
 tokenizer = WordPunctTokenizer()
@@ -27,6 +28,7 @@ def clean_text(text):
     
     tokens = tokenizer.tokenize(text)
     cleaned_tokens = [stemmer.stem(w) for w in tokens]
+
     return cleaned_tokens
 
 def clean_textfile(fullpath):
@@ -59,10 +61,16 @@ def dump_corpus(corpus, fullpath):
 
         f.write(new_text)
 
-def evaluate_recall(y, labels, k=1):
-    num_examples = float(len(y))
+def word_to_id(word_to_id_dict, word):
+    if word in word_to_id_dict:
+        return word_to_id_dict[word]
+    else: 
+        return word_to_id_dict['<UNK>']
+
+def evaluate_recall(y_pred, labels, k=1):
+    num_examples = float(len(y_pred))
     num_correct = 0
-    for preds, label in zip(y, labels):
+    for preds, label in zip(y_pred, labels):
         if label in preds[:k]:
             num_correct += 1
     return num_correct / num_examples
@@ -79,3 +87,26 @@ def print_learningconfig():
                 with open(path) as jsonData:
                     data = json.load(jsonData)
                     print(data['learning_config'])
+
+def make_sets(corpus, word_to_id_dict):
+    nb_para = len(corpus)
+    nb_para_dev_test = nb_para // 10
+    nb_para_train = nb_para - 2 * nb_para_dev_test
+
+    train_data = corpus[:nb_para_train]
+    train_data = [word_to_id(word_to_id_dict, y) for x in train_data for y in x]
+
+    dev_data = corpus[nb_para_train:nb_para_train + nb_para_dev_test]
+    dev_data = [word_to_id(word_to_id_dict, y) for x in dev_data for y in x]
+
+    test_data = corpus[nb_para_train + nb_para_dev_test:]
+    test_data = [word_to_id(word_to_id_dict, y) for x in test_data for y in x]
+
+    return train_data, dev_data, test_data
+
+def load_corpus_as_sets(fullpath, word_to_id_dict):
+    corpus = clean_textfile(fullpath)
+    corpus = get_corpus_with_paragraph(corpus)
+    return make_sets(corpus, word_to_id_dict)
+
+

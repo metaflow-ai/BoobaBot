@@ -32,6 +32,7 @@ class GloVeModel():
         self.__word_to_id = None
         self.__cooccurrence_matrix = None
         self.__embeddings = None
+        self.__last_chkp_file = None
 
     def fit_to_corpus(self, corpus):
         self.__fit_to_corpus(corpus, self.max_vocab_size, self.min_occurrences,
@@ -67,49 +68,53 @@ class GloVeModel():
             scaling_factor = tf.constant([self.scaling_factor], dtype=tf.float32,
                                          name="scaling_factor")
 
-            self.__focal_input = tf.placeholder(tf.int32, shape=[self.batch_size],
-                                                name="focal_words")
-            self.__context_input = tf.placeholder(tf.int32, shape=[self.batch_size],
-                                                  name="context_words")
-            self.__cooccurrence_count = tf.placeholder(tf.float32, shape=[self.batch_size],
-                                                       name="cooccurrence_count")
+            with tf.variable_scope('Placeholder'):
+                self.__focal_input = tf.placeholder(tf.int32, shape=[self.batch_size],
+                                                    name="focal_words")
+                self.__context_input = tf.placeholder(tf.int32, shape=[self.batch_size],
+                                                      name="context_words")
+                self.__cooccurrence_count = tf.placeholder(tf.float32, shape=[self.batch_size],
+                                                           name="cooccurrence_count")
+            with tf.variable_scope('Embedding'):
+                focal_embeddings = tf.Variable(
+                    tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
+                    name="focal_embeddings")
+                context_embeddings = tf.Variable(
+                    tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
+                    name="context_embeddings")
 
-            focal_embeddings = tf.Variable(
-                tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
-                name="focal_embeddings")
-            context_embeddings = tf.Variable(
-                tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
-                name="context_embeddings")
+                focal_biases = tf.Variable(tf.random_uniform([self.vocab_size], 1.0, -1.0),
+                                           name='focal_biases')
+                context_biases = tf.Variable(tf.random_uniform([self.vocab_size], 1.0, -1.0),
+                                             name="context_biases")
 
-            focal_biases = tf.Variable(tf.random_uniform([self.vocab_size], 1.0, -1.0),
-                                       name='focal_biases')
-            context_biases = tf.Variable(tf.random_uniform([self.vocab_size], 1.0, -1.0),
-                                         name="context_biases")
+                focal_embedding = tf.nn.embedding_lookup([focal_embeddings], self.__focal_input)
+                context_embedding = tf.nn.embedding_lookup([context_embeddings], self.__context_input)
+                focal_bias = tf.nn.embedding_lookup([focal_biases], self.__focal_input)
+                context_bias = tf.nn.embedding_lookup([context_biases], self.__context_input)
 
-            focal_embedding = tf.nn.embedding_lookup([focal_embeddings], self.__focal_input)
-            context_embedding = tf.nn.embedding_lookup([context_embeddings], self.__context_input)
-            focal_bias = tf.nn.embedding_lookup([focal_biases], self.__focal_input)
-            context_bias = tf.nn.embedding_lookup([context_biases], self.__context_input)
+            with tf.variable_scope('GloVe'):
+                weighting_factor = tf.minimum(
+                    1.0,
+                    tf.pow(
+                        tf.div(self.__cooccurrence_count, count_max),
+                        scaling_factor))
 
-            weighting_factor = tf.minimum(
-                1.0,
-                tf.pow(
-                    tf.div(self.__cooccurrence_count, count_max),
-                    scaling_factor))
+                embedding_product = tf.reduce_sum(tf.mul(focal_embedding, context_embedding), 1)
 
-            embedding_product = tf.reduce_sum(tf.mul(focal_embedding, context_embedding), 1)
+                log_cooccurrences = tf.log(tf.to_float(self.__cooccurrence_count))
 
-            log_cooccurrences = tf.log(tf.to_float(self.__cooccurrence_count))
+                distance_expr = tf.square(tf.add_n([
+                    embedding_product,
+                    focal_bias,
+                    context_bias,
+                    tf.neg(log_cooccurrences)]))
 
-            distance_expr = tf.square(tf.add_n([
-                embedding_product,
-                focal_bias,
-                context_bias,
-                tf.neg(log_cooccurrences)]))
+            with tf.variable_scope('Loss'):
+                single_losses = tf.mul(weighting_factor, distance_expr)
+                self.__total_loss = tf.reduce_sum(single_losses)
+                tf.scalar_summary("GloVe loss", self.__total_loss)
 
-            single_losses = tf.mul(weighting_factor, distance_expr)
-            self.__total_loss = tf.reduce_sum(single_losses)
-            tf.scalar_summary("GloVe loss", self.__total_loss)
             self.__optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.__total_loss)
             self.__summary = tf.merge_all_summaries()
 
@@ -147,7 +152,7 @@ class GloVeModel():
                     current_embeddings = self.__combined_embeddings.eval()
                     output_path = os.path.join(log_dir, "epoch{:03d}.png".format(epoch + 1))
                     self.generate_tsne(output_path, embeddings=current_embeddings)
-                saver.save(session, log_dir + '/booba-embedding', total_steps) 
+                self.__last_chkp_file = saver.save(session, log_dir + '/booba-embedding', total_steps) 
             self.__embeddings = self.__combined_embeddings.eval()
             if should_write_summaries:
                 summary_writer.close()
@@ -201,21 +206,33 @@ class GloVeModel():
         return _plot_with_labels(low_dim_embs, labels, path, size)
 
     def save(self, filepath):
+        embedding_var_name = 'embedding'
+        embeddings = tf.Variable(self.__embeddings)
+        saver = tf.train.Saver({
+            embedding_var_name: embeddings
+        })
+        with tf.Session() as sess:
+            sess.run(tf.initialize_variables([embeddings]))
+            final_weights_chkp = saver.save(sess, filepath.split('.')[0] + '.chkp')
+
         data = {
-            'learning_config':{
+            'config':{
                 'embedding_size': self.embedding_size,
                 'max_vocab_size': self.max_vocab_size,
+                'vocab_size': self.vocab_size,
                 'min_occurrences': self.min_occurrences,
                 'scaling_factor': self.scaling_factor,
                 'cooccurrence_cap': self.cooccurrence_cap,
                 'batch_size': self.batch_size,
                 'learning_rate': self.learning_rate,
                 'left_context': self.left_context,
-                'right_context': self.right_context
+                'right_context': self.right_context,
+                'embedding_chkpt_file': final_weights_chkp,
+                'embedding_var_name': embedding_var_name,
+                'chkp_file': self.__last_chkp_file
             },
-            'vocab_size': self.vocab_size,
             'word_to_id': self.__word_to_id,
-            'embed' : self.__embeddings.tolist()
+            # 'embed' : self.__embeddings.tolist()
         }
         with open(filepath, 'w') as f:
             json.dump(data, f)
