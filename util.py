@@ -65,6 +65,7 @@ def word_to_id(word_to_id_dict, word):
     if word in word_to_id_dict:
         return word_to_id_dict[word]
     else: 
+        print('woop')
         return word_to_id_dict['<UNK>']
 
 def evaluate_recall(y_pred, labels, k=1):

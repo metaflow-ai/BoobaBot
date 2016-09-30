@@ -55,6 +55,7 @@ class GloVeModel():
         self.__words = [word for word, count in word_counts.most_common(vocab_size)
                         if count >= min_occurrences]
         self.__word_to_id = {word: i for i, word in enumerate(self.__words)}
+        self.__word_to_id['<UNK>'] = len(self.__word_to_id)
         self.__cooccurrence_matrix = {
             (self.__word_to_id[words[0]], self.__word_to_id[words[1]]): count
             for words, count in cooccurrence_counts.items()
@@ -158,7 +159,7 @@ class GloVeModel():
                 summary_writer.close()
 
             if should_save:
-                self.save(log_dir + '/data.json')
+                self.save(log_dir)
 
     def embedding_for(self, word_str_or_id):
         if isinstance(word_str_or_id, str):
@@ -213,7 +214,7 @@ class GloVeModel():
         })
         with tf.Session() as sess:
             sess.run(tf.initialize_variables([embeddings]))
-            final_weights_chkp = saver.save(sess, filepath.split('.')[0] + '.chkp')
+            final_weights_chkp = saver.save(sess, filepath + '/' + embedding_var_name + '.chkp')
 
         data = {
             'config':{
@@ -227,14 +228,13 @@ class GloVeModel():
                 'learning_rate': self.learning_rate,
                 'left_context': self.left_context,
                 'right_context': self.right_context,
-                'embedding_chkpt_file': final_weights_chkp,
-                'embedding_var_name': embedding_var_name,
-                'chkp_file': self.__last_chkp_file
+                'embedding_chkpt_file': final_weights_chkp.split('/')[-1],
+                'embedding_var_name': embedding_var_name
+                # 'chkp_file': self.__last_chkp_file.split('/')[-1]
             },
-            'word_to_id': self.__word_to_id,
-            # 'embed' : self.__embeddings.tolist()
+            'word_to_id_dict': self.__word_to_id
         }
-        with open(filepath, 'w') as f:
+        with open(filepath + '/data.json', 'w') as f:
             json.dump(data, f)
 
 def _context_windows(region, left_size, right_size):

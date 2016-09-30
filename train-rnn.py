@@ -1,4 +1,4 @@
-import time, os, json, argparse
+import time, os, json, argparse, sys
 
 from util import load_corpus_as_sets
 from models.rnn import RNN
@@ -24,20 +24,24 @@ rnn_log_dir = results_dir + '/rnn/' + str(int(time.time()))
 with open(glove_dir + '/data.json') as jsonData:
     rawData = json.load(jsonData)
 
-config = rawData['config']
-args.update(config)
-args['word_to_id'] = rawData['word_to_id']
+config = dict(rawData['config'])
+config.update(vars(args))
+config['word_to_id_dict'] = rawData['word_to_id_dict']
+config['glove_dir'] = glove_dir
+if not '<UNK>' in config['word_to_id_dict']:
+    print('Missing <UNK> word')
+    sys.exit(0)
 
+print('Loading corpus as sets')
 if args.debug is True:
     fullpath = dir + '/crawler/data/test_results.txt'
 else:
     fullpath = dir + '/crawler/data/results.txt'
-train_data, dev_data, test_data = load_corpus_as_sets(fullpath, rawData['word_to_id'])
-
+train_data, dev_data, test_data = load_corpus_as_sets(fullpath, rawData['word_to_id_dict'])
 
 print('Building graph')
 model = RNN(config)
 
 print('Training model')
-model.fit(train_data)
+model.fit(train_data, dev_data)
 

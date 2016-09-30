@@ -17,12 +17,14 @@ class RNN(object):
         self.eval_freq = config.get('eval_freq', 100)
         self.save_freq = config.get('save_freq', 100)
 
+        self.num_epochs = config.get('num_epochs', 20)
         self.batch_size = config.get('batch_size', 32)
         self.lr = config.get('lr', 1e-3)
 
         self.train_glove = config.get('train_glove', False)
         self.restore_embedding = config.get('restore_embedding', True)
         if self.restore_embedding is True:
+            self.glove_dir = config['glove_dir']
             self.embedding_var_name = config['embedding_var_name']
             self.embedding_chkpt_file = config['embedding_chkpt_file']
         self.word_to_id_dict = config['word_to_id_dict']
@@ -91,18 +93,19 @@ class RNN(object):
             with tf.variable_scope('Accuracy'):
                 predictions = tf.cast(tf.argmax(outputs, 1, name="predictions"), tf.int32)
                 correct_predictions = tf.equal(predictions, y_true_reshaped)
-                accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32), name="accuracy")
+                self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32), name="accuracy")
 
-                acc_summary_op = tf.scalar_summary('Accuracy', accuracy)
+                acc_summary_op = tf.scalar_summary('Accuracy', self.accuracy)
 
             self.dev_summaries_op = tf.merge_summary([acc_summary_op])
             self.test_summaries_op = tf.merge_summary([acc_summary_op])
 
             adam = tf.train.AdamOptimizer(self.lr)
-            self.train_op = adam.minimize(total_loss)
+            self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
+            self.train_op = adam.minimize(total_loss, global_step=self.global_step)
 
             self.saver = tf.train.Saver()
-            self.global_step_tensor = tf.Variable(0, trainable=False, name='global_step')
+
 
             with tf.variable_scope('Prediction'):
                 self.temp_plh = tf.placeholder(tf.float32, shape=[1], name='temp_placeholder')
@@ -113,7 +116,8 @@ class RNN(object):
                 preds = tf.nn.softmax(outputs / self.temp_plh)
                 self.hot_pred = tf.multinomial(preds, 1)
 
-    def fit(self, train_data, dev_iterator):
+    def fit(self, train_data, dev_data):
+        dev_iterator = reader.ptb_iterator(dev_data, self.batch_size, self.seq_length)
         x_dev_batch, y_dev_batch = next(dev_iterator)
 
         with tf.Session(graph=self.graph) as sess:
@@ -124,23 +128,27 @@ class RNN(object):
 
             # Restoring embedding
             if self.restore_embedding is True:
-                print('restoring embedding')
-                self.embedding_saver.restore(sess, save_path=self.embedding_chkpt_file)
+                embedding_fullpath = self.glove_dir + '/' + self.embedding_chkpt_file
+                print('restoring embedding: %s' % embedding_fullpath)
+                self.embedding_saver.restore(sess, save_path=embedding_fullpath)
 
             for i in range(self.num_epochs):
                 train_iterator = reader.ptb_iterator(train_data, self.batch_size, self.seq_length)
                 for x_batch, y_batch in train_iterator:
                     train_summaries = self.train_step(sess, x_batch, y_batch)
                     
-                    current_step = tf.train.global_step(sess, self.global_step_tensor)
+                    current_step = tf.train.global_step(sess, self.global_step)
+                    print(current_step)
                     sw.add_summary(train_summaries, current_step)
 
                     if current_step % self.eval_freq == 0:
-                        dev_summaries = self.dev_step()
+                        dev_summaries = self.dev_step(sess, x_dev_batch, y_dev_batch)
                         sw.add_summary(dev_summaries, current_step)
 
                     if current_step % self.save_freq == 0:
                         self.saver.save(sess, self.log_dir + '/rnn.chkp', global_step=current_step)
+                epoch_acc = self.eval(dev_data, sess)
+                print('Epoch: %d, Accuracy: %f' % (i + 1, epoch_acc))
 
             self.save(sess)
 
@@ -158,15 +166,22 @@ class RNN(object):
         })
         return acc_summary
 
-    def eval(self, test_data):
-        with tf.Session(graph=self.graph) as sess:
-            test_iterator = reader.ptb_iterator(test_data, self.batch_size, self.seq_length)
-            for x_batch, y_batch in test_iterator:
-                acc = sess.run(self.dev_summaries_op, feed_dict={
-                    self.x_plh: x_batch,
-                    self.y_plh: y_batch
-                })
-                print("Accuracy: %f" % acc)
+    def eval(self, test_data, sess=None):
+        if sess is None:
+            sess = tf.Session(graph=self.graph)
+            self.saver.restore(self.log_dir + '/rnn.chkp')
+    
+        test_iterator = reader.ptb_iterator(test_data, self.batch_size, self.seq_length)
+        nb_step = 0
+        acc = 0
+        for x_batch, y_batch in test_iterator:
+            nb_step += 1
+            acc += sess.run(self.accuracy, feed_dict={
+                self.x_plh: x_batch,
+                self.y_plh: y_batch
+            })
+        acc /= nb_step
+        return acc
 
     def predict(self, x, temperature=1, random=False, sentence=False):
         with tf.Session(graph=self.graph) as sess:
