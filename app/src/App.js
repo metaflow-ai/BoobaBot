@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Editor, EditorState, RichUtils, Modifier } from 'draft-js';
+import { Editor, EditorState, Modifier } from 'draft-js';
 
 import './App.css';
 import '../node_modules/draft-js/dist/Draft.css'
@@ -42,7 +42,6 @@ class App extends Component {
     const { editorState } = this.state
     const content = editorState.getCurrentContent()
     const selection = editorState.getSelection()
-    const end = selection.getEndOffset()
 
     const newContentState = Modifier.insertText(
       content,
@@ -63,16 +62,19 @@ class App extends Component {
       <div className="App">
         <h1>Editor</h1>
 
-        <button onClick={this.selectProposal.bind(this, 'prop1')}>Prop 1</button>
-        <button onClick={this.selectProposal.bind(this, 'prop2')}>Prop 2</button>
-        <button onClick={this.selectProposal.bind(this, 'prop3')}>Prop 3</button>
-        <div className="editor">
+        <div id="editor-group">
           <Editor
             ref="editor"
+            className="editor"
             editorState={editorState}
             handleBeforeInput={this.handleBeforeInput}
             onChange={this.onChange}
           />
+          <div id="buttons">
+            <a href="#" onClick={this.selectProposal.bind(this, 'prop1')}>Prop 1</a>
+            <a href="#" onClick={this.selectProposal.bind(this, 'prop2')}>Prop 2</a>
+            <a href="#" onClick={this.selectProposal.bind(this, 'prop3')}>Prop 3</a>
+          </div>
         </div>
       </div>
     );
