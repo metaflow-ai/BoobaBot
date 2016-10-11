@@ -35,7 +35,7 @@ class RNN(object):
         self.embedding_size = config['embedding_size']
 
         self.num_layers = config.get('num_layers', 1)
-        
+
         self.graph = tf.Graph()
         self.build()
 
@@ -52,8 +52,8 @@ class RNN(object):
                     print('GloVe will be fine-tuned')
 
                 self.embedding = tf.get_variable(
-                    'embedding', 
-                    trainable=self.train_glove, 
+                    'embedding',
+                    trainable=self.train_glove,
                     shape=[self.vocab_size, self.embedding_size],
                     initializer=tf.random_uniform_initializer(minval=0.0, maxval=1.0)
                 )
@@ -123,7 +123,7 @@ class RNN(object):
         x_dev_batch, y_dev_batch = next(dev_iterator)
 
         with tf.Session(graph=self.graph) as sess:
-            sw = tf.train.SummaryWriter(self.log_dir, sess.graph)        
+            sw = tf.train.SummaryWriter(self.log_dir, sess.graph)
 
             print('Initializing all variables')
             sess.run(tf.initialize_all_variables())
@@ -188,22 +188,22 @@ class RNN(object):
                 while y != end_word:
                     y = self.__predict_word(sess, x, temperature, random)
                     x += y
-                return x    
+                return x
             else:
                 y = self.__predict_word(sess, x, temperature, random)
                 return y
-            
+
 
     def __predict_word(self, sess, x, temperature=1, random=False):
         if random is True:
             y = sess.run([self.hot_pred], feed_dict={
                 self.x_plh: x,
-                self.temp_plh: temperature
+                self.temp_plh: [temperature]
             })
         else:
             y = sess.run([self.pred], feed_dict={
                 self.x_plh: x,
-                self.temp_plh: temperature
+                self.temp_plh: [temperature]
             })
         return y
 

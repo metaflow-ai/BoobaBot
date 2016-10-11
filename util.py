@@ -1,5 +1,5 @@
 import re, os, nltk, json
-import numpy as np 
+import numpy as np
 
 from nltk.stem.snowball import FrenchStemmer, SnowballStemmer
 from nltk.tokenize import WordPunctTokenizer
@@ -25,7 +25,7 @@ def clean_text(text):
     # text = re.sub(r'\.\.\.', ' ', text)
     text = re.sub(r'[^a-zA-Z0-9 àáâãäçèéêëìíîïñòóôõöùúûüýÿ\'"\.,?;:\'"!-]', '', text)
     text = re.sub(r'(x|X)\d+', '', text) # Remove x2, x3 etc.
-    
+
     tokens = tokenizer.tokenize(text)
     cleaned_tokens = [stemmer.stem(w) for w in tokens]
 
@@ -64,8 +64,7 @@ def dump_corpus(corpus, fullpath):
 def word_to_id(word_to_id_dict, word):
     if word in word_to_id_dict:
         return word_to_id_dict[word]
-    else: 
-        print('woop')
+    else:
         return word_to_id_dict['<UNK>']
 
 def evaluate_recall(y_pred, labels, k=1):
