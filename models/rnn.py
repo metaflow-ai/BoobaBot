@@ -48,6 +48,9 @@ class RNN(object):
                 # self.batch_size_plh = tf.placeholder(tf.int32, shape=[1], name='Batch_size_placeholder')
 
             with tf.variable_scope('embedding'):
+                if self.train_glove is True:
+                    print('GloVe will be fine-tuned')
+
                 self.embedding = tf.get_variable(
                     'embedding', 
                     trainable=self.train_glove, 
@@ -69,7 +72,7 @@ class RNN(object):
                     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
                 cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
 
-                init_state = cell.zero_state(self.batch_size, tf.float32)
+                init_state = cell.zero_state(rnn_inputs.get_shape()[0], tf.float32)
                 outputs, encoder_final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
 
             with tf.variable_scope('Outputs'):
@@ -84,9 +87,9 @@ class RNN(object):
                 # Sparse softmax handle for us the fact that y_true is an list of indices
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(outputs, y_true_reshaped)
 
-                total_loss = tf.reduce_mean(losses, name="total_loss")
+                self.total_loss = tf.reduce_mean(losses, name="total_loss")
 
-                tf.scalar_summary('Total_loss', total_loss)
+                tf.scalar_summary('Total_loss', self.total_loss)
 
             self.train_summaries_op = tf.merge_all_summaries()
 
@@ -100,21 +103,20 @@ class RNN(object):
             self.dev_summaries_op = tf.merge_summary([acc_summary_op])
             self.test_summaries_op = tf.merge_summary([acc_summary_op])
 
-            adam = tf.train.AdamOptimizer(self.lr)
-            self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
-            self.train_op = adam.minimize(total_loss, global_step=self.global_step)
-
-            self.saver = tf.train.Saver()
-
-
             with tf.variable_scope('Prediction'):
                 self.temp_plh = tf.placeholder(tf.float32, shape=[1], name='temp_placeholder')
                 # Determinist prediction
                 preds = tf.nn.softmax(outputs)
                 self.pred = tf.argmax(preds, 1)
 
-                preds = tf.nn.softmax(outputs / self.temp_plh)
+                preds = tf.nn.softmax(- outputs / self.temp_plh)
                 self.hot_pred = tf.multinomial(preds, 1)
+
+            adam = tf.train.AdamOptimizer(self.lr)
+            self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
+            self.train_op = adam.minimize(self.total_loss, global_step=self.global_step)
+
+            self.saver = tf.train.Saver()            
 
     def fit(self, train_data, dev_data):
         dev_iterator = reader.ptb_iterator(dev_data, self.batch_size, self.seq_length)
@@ -135,10 +137,7 @@ class RNN(object):
             for i in range(self.num_epochs):
                 train_iterator = reader.ptb_iterator(train_data, self.batch_size, self.seq_length)
                 for x_batch, y_batch in train_iterator:
-                    train_summaries = self.train_step(sess, x_batch, y_batch)
-                    
-                    current_step = tf.train.global_step(sess, self.global_step)
-                    print(current_step)
+                    _, train_summaries, total_loss, current_step = self.train_step(sess, x_batch, y_batch)
                     sw.add_summary(train_summaries, current_step)
 
                     if current_step % self.eval_freq == 0:
@@ -153,38 +152,36 @@ class RNN(object):
             self.save(sess)
 
     def train_step(self, sess, x_batch, y_batch):
-        _, summaries = sess.run([self.train_op, self.train_summaries_op], feed_dict={
+        to_compute = [self.train_op, self.train_summaries_op, self.total_loss, self.global_step]
+        return sess.run(to_compute, feed_dict={
             self.x_plh: x_batch,
             self.y_plh: y_batch
         })
-        return summaries
 
     def dev_step(self, sess, x_batch, y_batch):
-        acc_summary = sess.run(self.dev_summaries_op, feed_dict={
+        to_compute = self.dev_summaries_op
+        return sess.run(to_compute, feed_dict={
             self.x_plh: x_batch,
             self.y_plh: y_batch
         })
-        return acc_summary
 
-    def eval(self, test_data, sess=None):
-        if sess is None:
-            sess = tf.Session(graph=self.graph)
-            self.saver.restore(self.log_dir + '/rnn.chkp')
-    
+    def eval(self, sess, test_data):    
         test_iterator = reader.ptb_iterator(test_data, self.batch_size, self.seq_length)
         nb_step = 0
-        acc = 0
+        avg_acc = 0
         for x_batch, y_batch in test_iterator:
             nb_step += 1
-            acc += sess.run(self.accuracy, feed_dict={
+            avg_acc += sess.run(self.avg_accuracy, feed_dict={
                 self.x_plh: x_batch,
                 self.y_plh: y_batch
             })
-        acc /= nb_step
-        return acc
+        avg_acc /= nb_step
+
+        return avg_acc
 
     def predict(self, x, temperature=1, random=False, sentence=False):
         with tf.Session(graph=self.graph) as sess:
+            self.saver.restore(sess, )
             if sentence is True:
                 end_word = word_to_id(self.word_to_id_dict, ".")
                 y = None

@@ -90,6 +90,7 @@ def print_learningconfig():
                     print(data['learning_config'])
 
 def make_sets(corpus, word_to_id_dict):
+    corpus = np.random.shuffle(corpus)
     nb_para = len(corpus)
     nb_para_dev_test = nb_para // 10
     nb_para_train = nb_para - 2 * nb_para_dev_test
