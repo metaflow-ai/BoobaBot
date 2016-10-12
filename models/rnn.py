@@ -3,19 +3,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys
+import sys, time, json, os
 
 import tensorflow as tf
 from tensorflow.models.rnn.ptb import reader
 
 from util import word_to_id
 
+UNKNOWN_TOKEN = '<UNK>'
+
 class RNN(object):
-    def __init__(self, config):
+    def __init__(self, config, mode='training'):
         self.debug = config.get('debug', False)
-        self.log_dir = config.get('log_dir', 'results/rnn')
+        self.log_dir = config.get('log_dir', 'results/rnn/' + str(int(time.time()))) 
         self.eval_freq = config.get('eval_freq', 100)
-        self.save_freq = config.get('save_freq', 100)
+        self.save_freq = config.get('save_freq', 1000)
 
         self.num_epochs = config.get('num_epochs', 20)
         self.batch_size = config.get('batch_size', 32)
@@ -26,19 +28,35 @@ class RNN(object):
         if self.restore_embedding is True:
             self.glove_dir = config['glove_dir']
             self.embedding_var_name = config['embedding_var_name']
-            self.embedding_chkpt_file = config['embedding_chkpt_file']
-        self.word_to_id_dict = config['word_to_id_dict']
+            self.embedding_chkpt = tf.train.get_checkpoint_state(self.glove_dir)
+            if self.embedding_chkpt is None:
+                print("Error: no saved GloVe model found in %s. Please train first" % self.glove_dir)
+                sys.exit(0)
+            print('Embedding will be loaded from %s' % self.embedding_chkpt.model_checkpoint_path)
+        self.word_to_id_dict = config.get('word_to_id_dict', None)
+        if self.word_to_id_dict is None:
+            self.load_word_to_id_dict()
+        else:
+            self.vocab_size = config['vocab_size']
+            self.embedding_size = config['embedding_size']
 
         self.seq_length = config.get('seq_length', 32)
         self.state_size = config.get('state_size', 256)
-        self.vocab_size = config['vocab_size']
-        self.embedding_size = config['embedding_size']
-
         self.num_layers = config.get('num_layers', 1)
 
         self.graph = tf.Graph()
         self.build()
 
+    def load_word_to_id_dict(self):
+        with open(self.log_dir + '/config.json') as jsonData:
+            config = json.load(jsonData)
+            self.word_to_id_dict = config['word_to_id_dict']
+            self.id_to_word_dict = {v: k for k, v in self.word_to_id_dict.items()}
+            self.vocab_size = config['vocab_size']
+            self.embedding_size = config['embedding_size']
+        if not '<UNK>' in self.word_to_id_dict:
+            print('Missing <UNK> word')
+            sys.exit(0)
 
     def build(self):
         with self.graph.as_default():
@@ -72,14 +90,14 @@ class RNN(object):
                     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
                 cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
 
-                init_state = cell.zero_state(rnn_inputs.get_shape()[0], tf.float32)
-                outputs, encoder_final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
+                self.init_state = cell.zero_state(tf.shape(rnn_inputs)[0], tf.float32)
+                self.outputs, self.encoder_final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=self.init_state)
 
             with tf.variable_scope('Outputs'):
                 W_s = tf.get_variable('W_s', shape=[self.state_size, self.vocab_size])
                 b_s = tf.get_variable('b_s', shape=[self.vocab_size])
 
-                outputs = tf.reshape(outputs, [-1, self.state_size])
+                outputs = tf.reshape(self.outputs, [-1, self.state_size])
                 outputs = tf.matmul(outputs, W_s) + b_s
 
             with tf.variable_scope('Loss'):
@@ -104,13 +122,15 @@ class RNN(object):
             self.test_summaries_op = tf.merge_summary([acc_summary_op])
 
             with tf.variable_scope('Prediction'):
-                self.temp_plh = tf.placeholder(tf.float32, shape=[1], name='temp_placeholder')
+                self.T_plh = tf.placeholder(tf.float32, shape=[], name='T_placeholder')
+                self.top_k = tf.placeholder(tf.int32, shape=[], name='top_k_placeholder')
+
                 # Determinist prediction
                 preds = tf.nn.softmax(outputs)
-                self.pred = tf.argmax(preds, 1)
+                self.pred_topk_value, self.pred_topk = tf.nn.top_k(preds, k=self.top_k, sorted=True)
 
-                preds = tf.nn.softmax(- outputs / self.temp_plh)
-                self.hot_pred = tf.multinomial(preds, 1)
+                T_preds = tf.nn.softmax(outputs / self.T_plh)
+                self.random_pred = tf.multinomial(T_preds, 1)
 
             adam = tf.train.AdamOptimizer(self.lr)
             self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
@@ -130,9 +150,8 @@ class RNN(object):
 
             # Restoring embedding
             if self.restore_embedding is True:
-                embedding_fullpath = self.glove_dir + '/' + self.embedding_chkpt_file
-                print('restoring embedding: %s' % embedding_fullpath)
-                self.embedding_saver.restore(sess, save_path=embedding_fullpath)
+                print('restoring embedding: %s' % self.embedding_chkpt.model_checkpoint_path)
+                self.embedding_saver.restore(sess, save_path=self.embedding_chkpt.model_checkpoint_path)
 
             for i in range(self.num_epochs):
                 train_iterator = reader.ptb_iterator(train_data, self.batch_size, self.seq_length)
@@ -146,7 +165,7 @@ class RNN(object):
 
                     if current_step % self.save_freq == 0:
                         self.saver.save(sess, self.log_dir + '/rnn.chkp', global_step=current_step)
-                epoch_acc = self.eval(dev_data, sess)
+                epoch_acc = self.eval(sess, dev_data)
                 print('Epoch: %d, Accuracy: %f' % (i + 1, epoch_acc))
 
             self.save(sess)
@@ -171,7 +190,7 @@ class RNN(object):
         avg_acc = 0
         for x_batch, y_batch in test_iterator:
             nb_step += 1
-            avg_acc += sess.run(self.avg_accuracy, feed_dict={
+            avg_acc += sess.run(self.accuracy, feed_dict={
                 self.x_plh: x_batch,
                 self.y_plh: y_batch
             })
@@ -179,39 +198,66 @@ class RNN(object):
 
         return avg_acc
 
-    def predict(self, x, temperature=1, random=False, sentence=False):
+    def predict(self, words, T=1., random=False, sentence=False, top_k=1):
+        x = [word_to_id(self.word_to_id_dict, word) for word in words]
+        outputs = []
+
         with tf.Session(graph=self.graph) as sess:
-            self.saver.restore(sess, )
+            self.restore(sess)
+
+            final_state = None
+
             if sentence is True:
                 end_word = word_to_id(self.word_to_id_dict, ".")
-                y = None
-                while y != end_word:
-                    y = self.__predict_word(sess, x, temperature, random)
-                    x += y
-                return x
+                y = x
+
+                max_number_of_word = 50
+                i = 0
+                while y[-1] != end_word and i < max_number_of_word:
+                    i += 1
+
+                    y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random)
+                    outputs.append(y[-1])
             else:
-                y = self.__predict_word(sess, x, temperature, random)
-                return y
+                y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random, top_k=top_k)
+                outputs = y
+        outputs = [self.id_to_word_dict[id] for id in outputs]
+        return outputs
 
 
-    def __predict_word(self, sess, x, temperature=1, random=False):
+    def __predict_word(self, sess, x, init_state=None, T=1., random=False, top_k=1):
+        feed_dict = {
+            self.x_plh: x,
+            self.T_plh: T,
+            self.top_k: top_k
+        }
+        if init_state != None:
+            feed_dict[self.init_state] = init_state
+
         if random is True:
-            y = sess.run([self.hot_pred], feed_dict={
-                self.x_plh: x,
-                self.temp_plh: [temperature]
-            })
+            to_compute = [self.random_pred, self.encoder_final_state]
         else:
-            y = sess.run([self.pred], feed_dict={
-                self.x_plh: x,
-                self.temp_plh: [temperature]
-            })
-        return y
+            to_compute = [self.pred_topk, self.encoder_final_state]
+
+        ys, final_states = sess.run(to_compute, feed_dict=feed_dict)
+        return ys[-1], final_states[-1]
 
     def save(self, sess):
-        print('Saving model to %s' % self.log_dir)
-        self.saver.save(sess, self.log_dir)
+        if self.debug:
+            print('Saving model to %s' % self.log_dir)
+        global_step = tf.train.global_step(sess, self.global_step)
+        self.saver.save(sess, self.log_dir + '/boobabot', global_step=global_step)
+        data = {
+            'word_to_id_dict': self.word_to_id_dict,
+            'vocab_size': self.vocab_size,
+            'embedding_size': self.embedding_size
+        }
+        config_filepath = self.log_dir + '/config.json'
+        if not os.path.isfile(config_filepath):
+            with open(config_filepath, 'w') as f:
+                json.dump(data, f)
 
-    def load(self, sess):
+    def restore(self, sess):
         print('loading model')
         checkpoint = tf.train.get_checkpoint_state(self.log_dir)
         if checkpoint is None:

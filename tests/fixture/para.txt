@@ -1,0 +1,7 @@
+un premier paragraphe
+avec plusieurs lignes
+qui se succèdent.
+
+et un deuxieme paragraphe
+parcequ'il me faut au moins 
+deux paragraphe.

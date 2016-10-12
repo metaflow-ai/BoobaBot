@@ -54,8 +54,8 @@ class GloVeModel():
             raise ValueError("No coccurrences in corpus. Did you try to reuse a generator?")
         self.__words = [word for word, count in word_counts.most_common(vocab_size)
                         if count >= min_occurrences]
+        self.__words.append('<UNK>')
         self.__word_to_id = {word: i for i, word in enumerate(self.__words)}
-        self.__word_to_id['<UNK>'] = len(self.__word_to_id)
         self.__cooccurrence_matrix = {
             (self.__word_to_id[words[0]], self.__word_to_id[words[1]]): count
             for words, count in cooccurrence_counts.items()
@@ -214,7 +214,8 @@ class GloVeModel():
         })
         with tf.Session() as sess:
             sess.run(tf.initialize_variables([embeddings]))
-            final_weights_chkp = saver.save(sess, filepath + '/' + embedding_var_name + '.chkp')
+            saver.save(sess, filepath + '/' + embedding_var_name + '.chkp')
+            # final_weights_chkp = saver.save(sess, filepath + '/' + embedding_var_name + '.chkp')
 
         data = {
             'config':{
@@ -228,13 +229,13 @@ class GloVeModel():
                 'learning_rate': self.learning_rate,
                 'left_context': self.left_context,
                 'right_context': self.right_context,
-                'embedding_chkpt_file': final_weights_chkp.split('/')[-1],
+                # 'embedding_chkpt_file': final_weights_chkp.split('/')[-1],
                 'embedding_var_name': embedding_var_name
                 # 'chkp_file': self.__last_chkp_file.split('/')[-1]
             },
             'word_to_id_dict': self.__word_to_id
         }
-        with open(filepath + '/data.json', 'w') as f:
+        with open(filepath + '/config.json', 'w') as f:
             json.dump(data, f)
 
 def _context_windows(region, left_size, right_size):
