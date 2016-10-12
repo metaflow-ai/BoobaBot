@@ -44,8 +44,8 @@ else:
 for i in range(nb_search_iter):
     # Random search
     if args.debug is False:
-        embedding_size = int(np.random.random_integers(50,150))
-        context_size = int(np.random.random_integers(5,10))
+        embedding_size = int(np.random.random_integers(100,300))
+        context_size = int(np.random.random_integers(5,15))
 
     print('Init the GloVe model')
     model = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
