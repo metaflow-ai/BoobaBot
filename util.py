@@ -109,9 +109,9 @@ def predict_random(utterances):
 def print_learningconfig():
     for subdir, dirs, files in os.walk('results'):
         for file in files:
-            if file == 'data.json':
+            if file == 'config.json':
                 path = os.path.join(subdir, file)
                 print(path)
                 with open(path) as jsonData:
                     data = json.load(jsonData)
-                    print(data['learning_config'])
+                    print(data['config'])

@@ -11,6 +11,7 @@ parser.add_argument("--init_glove", default="pretrain", type=str, help="Choose t
 parser.add_argument("--glove_dir", default="results/glove", type=str, help="glove dir (default: %(default)s)")
 parser.add_argument("--train_glove", nargs="?", const=True, default=False, type=bool, help="Are we finetuning/training GloVe embedding (default: %(default)s)")
 parser.add_argument("--batch_size", default=32, type=int, help="Batch size (default: %(default)s)")
+parser.add_argument("--cell_name", default="lstm", type=str, help="Cell architecture (default: %(default)s)")
 parser.add_argument("--seq_length", default=32, type=int, help="RNN sequence length (default: %(default)s)")
 parser.add_argument("--state_size", default=256, type=int, help="RNN state size (default: %(default)s)")
 parser.add_argument("--num_layers", default=1, type=int, help="How deep is the RNN (default: %(default)s)")

@@ -14,15 +14,19 @@ UNKNOWN_TOKEN = '<UNK>'
 
 class RNN(object):
     def __init__(self, config, mode='training'):
+        # Training config
         self.debug = config.get('debug', False)
         self.log_dir = config.get('log_dir', 'results/rnn/' + str(int(time.time())))
         self.eval_freq = config.get('eval_freq', 100)
         self.save_freq = config.get('save_freq', 1000)
-
         self.num_epochs = config.get('num_epochs', 20)
         self.batch_size = config.get('batch_size', 32)
         self.lr = config.get('lr', 1e-3)
 
+        if os.path.isfile(self.log_dir + '/config.json'):
+            self.load_rnn_config_from_file(self.log_dir + '/config.json')
+
+        # Embedding config
         self.train_glove = config.get('train_glove', False)
         self.restore_embedding = config.get('restore_embedding', True)
         if self.restore_embedding is True:
@@ -35,11 +39,13 @@ class RNN(object):
             print('Embedding will be loaded from %s' % self.embedding_chkpt.model_checkpoint_path)
         self.word_to_id_dict = config.get('word_to_id_dict', None)
         if self.word_to_id_dict is None:
-            self.load_word_to_id_dict()
+            self.load_embedding_config_from_file()
         else:
             self.vocab_size = config['vocab_size']
             self.embedding_size = config['embedding_size']
 
+        # RNN config
+        self.cell_name = config.get('cell_name', 'lstm')
         self.seq_length = config.get('seq_length', 32)
         self.state_size = config.get('state_size', 256)
         self.num_layers = config.get('num_layers', 1)
@@ -47,7 +53,17 @@ class RNN(object):
         self.graph = tf.Graph()
         self.build()
 
-    def load_word_to_id_dict(self):
+    def load_rnn_config_from_file(self, config_filepath):
+        print('Loading RNN config from file %s' % self.log_dir + '/config.json')
+        with open(self.log_dir + '/config.json', 'w') as jsonData:
+            config = json.load(jsonData)
+            self.cell_name = config['cell_name']
+            self.seq_length = config['seq_length']
+            self.state_size = config['state_size']
+            self.num_layers = config['num_layers']
+
+    def load_embedding_config_from_file(self):
+        print('Loading embedding config from file %s' % self.log_dir + '/config.json')
         with open(self.log_dir + '/config.json') as jsonData:
             config = json.load(jsonData)
             self.word_to_id_dict = config['word_to_id_dict']
@@ -84,11 +100,16 @@ class RNN(object):
                 })
 
             with tf.variable_scope('Encoder'):
-                state_is_tuple = True
-                cell = tf.nn.rnn_cell.LSTMCell(self.state_size, use_peepholes=True, state_is_tuple=state_is_tuple)
+                state_is_tuple = False
+                if self.cell_name == 'lstm':
+                    state_is_tuple = True
+                    cell = tf.nn.rnn_cell.LSTMCell(self.state_size, use_peepholes=True, state_is_tuple=state_is_tuple)
+                elif self.cell_name == 'gru':
+                    cell = tf.nn.rnn_cell.GRUCell(self.state_size)
+                else:
+                    raise ValueError("Cell %s not handled" % (self.cell_name))
                 if self.num_layers > 1:
                     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
-                cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
 
                 self.init_state = cell.zero_state(tf.shape(rnn_inputs)[0], tf.float32)
                 self.outputs, self.encoder_final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=self.init_state)
@@ -216,7 +237,7 @@ class RNN(object):
                 while y[-1] != end_word and i < max_number_of_word:
                     i += 1
 
-                    y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random)
+                    y, final_state = self.__predict_word(sess, [y], init_state=final_state, T=T, random=random)
                     outputs.append(y[-1])
             else:
                 y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random, top_k=top_k)
@@ -239,8 +260,8 @@ class RNN(object):
         else:
             to_compute = [self.pred_topk, self.encoder_final_state]
 
-        ys, final_states = sess.run(to_compute, feed_dict=feed_dict)
-        return ys[-1], final_states[-1]
+        ys, final_state = sess.run(to_compute, feed_dict=feed_dict)
+        return ys[-1], final_state
 
     def save(self, sess):
         if self.debug:
@@ -248,9 +269,20 @@ class RNN(object):
         global_step = tf.train.global_step(sess, self.global_step)
         self.saver.save(sess, self.log_dir + '/boobabot', global_step=global_step)
         data = {
+            'eval_freq': self.eval_freq,
+            'save_freq': self.save_freq,
+            'num_epochs': self.num_epochs,
+            'batch_size': self.batch_size,
+            'lr': self.lr,
+
             'word_to_id_dict': self.word_to_id_dict,
             'vocab_size': self.vocab_size,
-            'embedding_size': self.embedding_size
+            'embedding_size': self.embedding_size,
+
+            'cell_name': self.cell_name,
+            'seq_length': self.seq_length,
+            'state_size': self.state_size,
+            'num_layers': self.num_layers
         }
         config_filepath = self.log_dir + '/config.json'
         if not os.path.isfile(config_filepath):
