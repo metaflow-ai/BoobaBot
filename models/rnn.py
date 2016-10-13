@@ -15,7 +15,7 @@ UNKNOWN_TOKEN = '<UNK>'
 class RNN(object):
     def __init__(self, config, mode='training'):
         self.debug = config.get('debug', False)
-        self.log_dir = config.get('log_dir', 'results/rnn/' + str(int(time.time()))) 
+        self.log_dir = config.get('log_dir', 'results/rnn/' + str(int(time.time())))
         self.eval_freq = config.get('eval_freq', 100)
         self.save_freq = config.get('save_freq', 1000)
 
@@ -136,7 +136,7 @@ class RNN(object):
             self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
             self.train_op = adam.minimize(self.total_loss, global_step=self.global_step)
 
-            self.saver = tf.train.Saver()            
+            self.saver = tf.train.Saver()
 
     def fit(self, train_data, dev_data):
         dev_iterator = reader.ptb_iterator(dev_data, self.batch_size, self.seq_length)
@@ -184,7 +184,7 @@ class RNN(object):
             self.y_plh: y_batch
         })
 
-    def eval(self, sess, test_data):    
+    def eval(self, sess, test_data):
         test_iterator = reader.ptb_iterator(test_data, self.batch_size, self.seq_length)
         nb_step = 0
         avg_acc = 0
