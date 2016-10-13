@@ -23,9 +23,6 @@ class RNN(object):
         self.batch_size = config.get('batch_size', 32)
         self.lr = config.get('lr', 1e-3)
 
-        if os.path.isfile(self.log_dir + '/config.json'):
-            self.load_rnn_config_from_file(self.log_dir + '/config.json')
-
         # Embedding config
         self.train_glove = config.get('train_glove', False)
         self.restore_embedding = config.get('restore_embedding', True)
@@ -45,10 +42,19 @@ class RNN(object):
             self.embedding_size = config['embedding_size']
 
         # RNN config
-        self.cell_name = config.get('cell_name', 'lstm')
-        self.seq_length = config.get('seq_length', 32)
-        self.state_size = config.get('state_size', 256)
-        self.num_layers = config.get('num_layers', 1)
+        if os.path.isfile(self.log_dir + '/config.json'):
+            # In this case, it means that we are laoding an RNN
+            self.load_rnn_config_from_file(self.log_dir + '/config.json')
+        else:
+            self.cell_name = config.get('cell_name', 'lstm')
+            self.rnn_activation = config.get('rnn_activation', 'tanh')
+            self.seq_length = config.get('seq_length', 32)
+            self.state_size = config.get('state_size', 256)
+            self.num_layers = config.get('num_layers', 1)
+            self.tye_embedding = config.get('tye_embedding', False)
+            if self.tye_embedding is True:
+                print('Embedding weights will be tyed and state_size==embedding_size')
+                self.state_size = self.embedding_size
 
         self.graph = tf.Graph()
         self.build()
@@ -58,9 +64,12 @@ class RNN(object):
         with open(self.log_dir + '/config.json', 'w') as jsonData:
             config = json.load(jsonData)
             self.cell_name = config['cell_name']
+            self.rnn_activation = config['rnn_activation']
             self.seq_length = config['seq_length']
             self.state_size = config['state_size']
             self.num_layers = config['num_layers']
+            self.tye_embedding = config['tye_embedding']
+            
 
     def load_embedding_config_from_file(self):
         print('Loading embedding config from file %s' % self.log_dir + '/config.json')
@@ -100,14 +109,25 @@ class RNN(object):
                 })
 
             with tf.variable_scope('Encoder'):
+                if self.rnn_activation == "tanh":
+                    activation = tf.tanh
+                elif self.rnn_activation == "relu":
+                    activation = tf.nn.relu
+                else:
+                    raise ValueError("Activation %s not handled" % (self.rnn_activation))
+
                 state_is_tuple = False
                 if self.cell_name == 'lstm':
                     state_is_tuple = True
-                    cell = tf.nn.rnn_cell.LSTMCell(self.state_size, use_peepholes=True, state_is_tuple=state_is_tuple)
+                    cell = tf.nn.rnn_cell.LSTMCell(self.state_size, use_peepholes=False, state_is_tuple=state_is_tuple, activation=activation)
+                elif self.cell_name == 'peepholelstm':
+                    state_is_tuple = True
+                    cell = tf.nn.rnn_cell.LSTMCell(self.state_size, use_peepholes=True, state_is_tuple=state_is_tuple, activation=activation)
                 elif self.cell_name == 'gru':
-                    cell = tf.nn.rnn_cell.GRUCell(self.state_size)
+                    cell = tf.nn.rnn_cell.GRUCell(self.state_size, activation=activation)
                 else:
                     raise ValueError("Cell %s not handled" % (self.cell_name))
+
                 if self.num_layers > 1:
                     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers, state_is_tuple=state_is_tuple)
 
@@ -115,11 +135,14 @@ class RNN(object):
                 self.outputs, self.encoder_final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=self.init_state)
 
             with tf.variable_scope('Outputs'):
-                W_s = tf.get_variable('W_s', shape=[self.state_size, self.vocab_size])
-                b_s = tf.get_variable('b_s', shape=[self.vocab_size])
+                if self.tye_embedding is True:
+                    W_o = tf.transpose(self.embedding)
+                else:
+                    W_o = tf.get_variable('W_o', shape=[self.state_size, self.vocab_size])
+                b_o = tf.get_variable('b_o', shape=[self.vocab_size])
 
                 outputs = tf.reshape(self.outputs, [-1, self.state_size])
-                outputs = tf.matmul(outputs, W_s) + b_s
+                outputs = tf.matmul(outputs, W_o) + b_o
 
             with tf.variable_scope('Loss'):
                 y_true_reshaped = tf.reshape(self.y_plh, [-1])
@@ -268,26 +291,34 @@ class RNN(object):
             print('Saving model to %s' % self.log_dir)
         global_step = tf.train.global_step(sess, self.global_step)
         self.saver.save(sess, self.log_dir + '/boobabot', global_step=global_step)
-        data = {
+        config = {
             'eval_freq': self.eval_freq,
             'save_freq': self.save_freq,
             'num_epochs': self.num_epochs,
             'batch_size': self.batch_size,
             'lr': self.lr,
 
+            'train_glove': self.train_glove,
+            'restore_embedding': self.restore_embedding,
             'word_to_id_dict': self.word_to_id_dict,
             'vocab_size': self.vocab_size,
             'embedding_size': self.embedding_size,
 
             'cell_name': self.cell_name,
+            'rnn_activation': self.rnn_activation,
             'seq_length': self.seq_length,
             'state_size': self.state_size,
-            'num_layers': self.num_layers
+            'num_layers': self.num_layers,
+            'tye_embedding': self.tye_embedding,
         }
+        if self.restore_embedding is True:
+            config['glove_dir'] = self.glove_dir
+            config['embedding_var_name'] = self.embedding_var_name
+
         config_filepath = self.log_dir + '/config.json'
         if not os.path.isfile(config_filepath):
             with open(config_filepath, 'w') as f:
-                json.dump(data, f)
+                json.dump(config, f)
 
     def restore(self, sess):
         print('loading model')
