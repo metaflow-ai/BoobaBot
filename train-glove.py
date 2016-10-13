@@ -5,13 +5,13 @@ import tf_glove
 from util import clean_textfile, dump_corpus, get_corpus_with_paragraph
 
 dir = os.path.dirname(os.path.realpath(__file__))
-    
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
 
 args = parser.parse_args()
 if args.debug is True:
-    textfile = dir + '/crawler/data/test_results.txt'
+    textfile = dir + '/crawler/data/results.txt'
     corpus = clean_textfile(textfile)
     corpus = get_corpus_with_paragraph(corpus)
 
@@ -24,7 +24,7 @@ if args.debug is True:
         chars += list(word)
     chars = set(chars)
     print(chars)
-    
+
     print('Dumping cleaned results')
     cleaned_textfile = dir + '/crawler/data/results_clean.txt'
     dump_corpus(corpus, cleaned_textfile)
@@ -49,7 +49,7 @@ for i in range(nb_search_iter):
 
     print('Init the GloVe model')
     model = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
-    
+
     print('Fit to corpus and compute graph for training')
     model.fit_to_corpus(corpus)
     print('final vocab_size %d' % (model.vocab_size))

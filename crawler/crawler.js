@@ -3,6 +3,14 @@ var request = require('request');
 var cheerio = require('cheerio');
 var readline = require('readline');
 
+/**
+
+Getting the links from Genius
+Array.from(document.getElementsByClassName("mini_song_card--small")).forEach(function(item) {
+   console.log(item.getAttribute('ng-href'));
+});
+
+*/
 
 raw_output_file = './crawler/data/raw_results.txt'
 output_file = './crawler/data/results.txt'
@@ -49,9 +57,8 @@ rl.on('line', function(url) {
         });
       });
     })
-  }, Math.random() * 30000)
+  }, Math.random() * 120000)
 
-  
 });
 
 rl.on('close', function() {
