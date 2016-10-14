@@ -5,7 +5,8 @@ fi
 python train-rnn.py --glove_dir $GLOVE_DIR --rnn_activation relu
 python train-rnn.py --glove_dir $GLOVE_DIR --seq_length 128
 python train-rnn.py --glove_dir $GLOVE_DIR --state_size 1024
-python train-rnn.py --glove_dir $GLOVE_DIR --tye_embedding
+# python train-rnn.py --glove_dir $GLOVE_DIR --tye_embedding
+python train-rnn.py --glove_dir $GLOVE_DIR --tye_embedding --train_glove
 for i in $(seq 1 2 6);
 do
   python train-rnn.py --glove_dir $GLOVE_DIR --num_layers $i 

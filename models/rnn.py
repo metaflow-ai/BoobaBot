@@ -61,7 +61,7 @@ class RNN(object):
 
     def load_rnn_config_from_file(self, config_filepath):
         print('Loading RNN config from file %s' % self.log_dir + '/config.json')
-        with open(self.log_dir + '/config.json', 'w') as jsonData:
+        with open(self.log_dir + '/config.json', 'r') as jsonData:
             config = json.load(jsonData)
             self.cell_name = config['cell_name']
             self.rnn_activation = config['rnn_activation']
@@ -73,7 +73,7 @@ class RNN(object):
 
     def load_embedding_config_from_file(self):
         print('Loading embedding config from file %s' % self.log_dir + '/config.json')
-        with open(self.log_dir + '/config.json') as jsonData:
+        with open(self.log_dir + '/config.json', 'r') as jsonData:
             config = json.load(jsonData)
             self.word_to_id_dict = config['word_to_id_dict']
             self.id_to_word_dict = {v: k for k, v in self.word_to_id_dict.items()}
@@ -86,8 +86,9 @@ class RNN(object):
     def build(self):
         with self.graph.as_default():
             with tf.variable_scope('Placeholder'):
-                self.x_plh = tf.placeholder(tf.int32, shape=[None, self.seq_length], name='Inputs_placeholder')
-                self.y_plh = tf.placeholder(tf.int32, shape=[None, self.seq_length], name='Labels_placeholder')
+                # Shape: batch_size x seq_length
+                self.x_plh = tf.placeholder(tf.int32, shape=[None, None], name='Inputs_placeholder')
+                self.y_plh = tf.placeholder(tf.int32, shape=[None, None], name='Labels_placeholder')
                 # self.batch_size_plh = tf.placeholder(tf.int32, shape=[1], name='Batch_size_placeholder')
 
             with tf.variable_scope('embedding'):
@@ -174,7 +175,7 @@ class RNN(object):
                 self.pred_topk_value, self.pred_topk = tf.nn.top_k(preds, k=self.top_k, sorted=True)
 
                 T_preds = tf.nn.softmax(outputs / self.T_plh)
-                self.random_pred = tf.multinomial(T_preds, 1)
+                self.random_pred = tf.multinomial(tf.log(T_preds), 1)
 
             adam = tf.train.AdamOptimizer(self.lr)
             self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
@@ -259,7 +260,6 @@ class RNN(object):
                 i = 0
                 while y[-1] != end_word and i < max_number_of_word:
                     i += 1
-
                     y, final_state = self.__predict_word(sess, [y], init_state=final_state, T=T, random=random)
                     outputs.append(y[-1])
             else:
