@@ -1,60 +1,66 @@
 import time, os, argparse
 import numpy as np
+from collections import Counter
 
 import tf_glove
-from util import clean_textfile, dump_corpus, get_corpus_with_paragraph
+from util import clean_textfile, dump_corpus, get_regions_from_corpus
 
 dir = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
+parser.add_argument("--num_epochs", default=20, type=int, help="How many epochs should we train the GloVe (default: %(default)s)")
+parser.add_argument("--nb_search_iter", default=10, type=int, help="Batch size (default: %(default)s)")
+parser.add_argument("--stem", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
+
 
 args = parser.parse_args()
 if args.debug is True:
-    textfile = dir + '/crawler/data/results.txt'
-    corpus = clean_textfile(textfile)
-    corpus = get_corpus_with_paragraph(corpus)
+    textfile = dir + '/crawler/data/test_results.txt'
+    corpus = clean_textfile(textfile, args.stem)
+    print("%d words found" % len(corpus))
 
-    flatten_corpus = [y for x in corpus for y in x]
-    print("%d words found" % len(flatten_corpus))
-    nbTokens = len(set(flatten_corpus))
-    print('%d tokens found' % nbTokens)
-    chars = []
-    for word in flatten_corpus:
-        chars += list(word)
-    chars = set(chars)
+    counter = Counter()
+    counter.update(corpus)
+    print('%d paragraphe found' % counter['<EOP>'])
+    
+    nb_tokens = len(set(corpus))
+    print('%d unique tokens found' % nb_tokens)
+
+    chars = set(''.join(corpus))
+    print('%d chars found' % len(chars))
     print(chars)
 
     print('Dumping cleaned results')
     cleaned_textfile = dir + '/crawler/data/results_clean.txt'
     dump_corpus(corpus, cleaned_textfile)
 
+    regions = get_regions_from_corpus(corpus)
+
     nb_search_iter = 1
     embedding_size = 3
-    context_size = 5
-    num_epochs = 5
+    context_size = 4
+    num_epochs = 20
 else:
     textfile = dir + '/crawler/data/results.txt'
-    corpus = clean_textfile(textfile)
-    corpus = get_corpus_with_paragraph(corpus)
+    corpus = clean_textfile(textfile, args.stem)
+    regions = get_regions_from_corpus(corpus)
 
-    nb_search_iter = 10
-    num_epochs = 80
+    nb_search_iter = args.nb_search_iter
+    num_epochs = args.num_epochs
 
 for i in range(nb_search_iter):
     # Random search
     if args.debug is False:
-        embedding_size = int(np.random.random_integers(100,300))
+        embedding_size = int(np.random.random_integers(200,500))
         context_size = int(np.random.random_integers(5,15))
 
     print('Init the GloVe model')
-    model = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
+    glove = tf_glove.GloVeModel(embedding_size=embedding_size, context_size=context_size, learning_rate=1e-3)
 
     print('Fit to corpus and compute graph for training')
-    model.fit_to_corpus(corpus)
-    print('final vocab_size %d' % (model.vocab_size))
+    glove.fit_to_corpus(regions)
+    print('final vocab_size %d' % (glove.vocab_size))
 
-    print('Start Training for iter: %d' % i)
-    model.train(num_epochs=num_epochs, log_dir=dir + '/results/glove/' + str(int(time.time())), summary_batch_interval=100, should_save=True)
-
-    #Todo Check for the best accuracy model and autonatically set it as a baseline
+    print('Start training for iter: %d' % i)
+    glove.train(num_epochs=num_epochs, log_dir=dir + '/results/glove/' + str(int(time.time())), summary_batch_interval=100, should_save=True)

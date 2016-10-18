@@ -1,5 +1,6 @@
 import re, os, json
 import numpy as np
+from collections import Counter
 
 from nltk.stem.snowball import FrenchStemmer, SnowballStemmer
 from nltk.tokenize import WordPunctTokenizer
@@ -11,11 +12,11 @@ tokenizer = WordPunctTokenizer()
 # stemmer = FrenchStemmer()
 
 # Takes a string and return a list of words
-def clean_text(text):
+def clean_text(text, stem=False):
     # Removing curly braces, those are metadata in the corpus
     text = re.sub(r'\{.*}', '', text)
     # Remove x2, x3 etc. (repeating verse annotation)
-    text = re.sub(r'(x|X)\d+', '', text) 
+    text = re.sub(r'(x|X)\d+', '', text)
     # Replacing purely stylistics chars
     text = re.sub(r'æ', 'ae', text)
     text = re.sub(r'œ', 'oe', text)
@@ -25,38 +26,54 @@ def clean_text(text):
     text = re.sub(r'[áâãä]', 'a', text)
     text = re.sub(r'ë', 'e', text)
     text = re.sub(r'ñ', 'n', text)
-    text = re.sub(r'[ûü]', 'u', text)    
+    text = re.sub(r'[ûü]', 'u', text)
+    text = re.sub(r'[«“”»]', '"', text)
+    text = re.sub(r'[…]', '...', text)
     # Characters whitelist to avoid any unknkown chars
-    text = re.sub(r'[^a-zA-Z0-9 àáâãäçèéêëìíîïñòóôõöùúûüýÿ\'"\.,?;:\'"!-]', '', text) 
-    
+    text = re.sub(r'[^a-zA-Z0-9 àáâãäçèéêëìíîïñòóôõöùúûüýÿ\'"\.,?;:\'"!-]', '', text)
+
 
     tokens = tokenizer.tokenize(text)
-    cleaned_tokens = [stemmer.stem(w) for w in tokens]
+    if stem is True:
+        cleaned_tokens = [stemmer.stem(w) for w in tokens]
+    else:
+        cleaned_tokens = [w.lower() for w in tokens]
 
     return cleaned_tokens
 
-def clean_textfile(fullpath):
+def clean_textfile(fullpath, stem=False):
+    EOP = False
     with open(fullpath, 'r') as f:
         corpus = f.readlines()
-        corpus = [clean_text(line) for line in corpus]
+        cleaned_corpus = []
+        for line in corpus:
+            cleaned_line = clean_text(line, stem)
+            if len(cleaned_line) != 0:
+                cleaned_line += ['<EOL>']
+                EOP = False
+                cleaned_corpus += cleaned_line
+            else:
+                # If EOP is True, it means we have multiple empty line
+                if EOP is False:
+                    cleaned_line = ['<EOP>']
+                    EOP = True
+                    cleaned_corpus += cleaned_line
+                
+    if EOP is False:
+        cleaned_corpus += ['<EOP>']
 
-    return corpus
+    return cleaned_corpus
 
-def get_corpus_with_paragraph(corpus):
-    corpus_para = []
+def get_regions_from_corpus(corpus):
+    regions = []
     region = []
-    for line in corpus:
-        if len(line) == 0:
-            if len(region) != 0:
-                corpus_para.append(region)
-                region = []
-            continue
-        region += line
+    for word in corpus:
+        region.append(word)
+        if word == '<EOP>':
+            regions.append(region)
+            region = []
 
-    if len(region) != 0:
-        corpus_para.append(region)
-
-    return corpus_para
+    return regions
 
 def dump_corpus(corpus, fullpath):
     with open(fullpath, 'w') as f:
@@ -72,39 +89,32 @@ def word_to_id(wti_dict, word):
         return wti_dict['<UNK>']
 
 
-def make_sets(corpus, wti_dict):
-    np.random.shuffle(corpus)
-    nb_para = len(corpus)
-    nb_para_dev_test = nb_para // 10
+def make_sets(corpus, wti_dict, dev_test_size=0.1):
+    counter = Counter()
+    counter.update(corpus)
+    
+    nb_para = counter['<EOP>']
+    nb_para_dev_test = int(nb_para * dev_test_size)
     nb_para_train = nb_para - 2 * nb_para_dev_test
 
-    train_data = corpus[:nb_para_train]
-    train_data = [word_to_id(wti_dict, y) for x in train_data for y in x]
+    para_indexes = [i for i,word in enumerate(corpus) if word == '<EOP>']
+    end_train_set_index = para_indexes[nb_para_train - 1] 
+    end_dev_set_index = para_indexes[nb_para_train + nb_para_dev_test - 1] 
 
-    dev_data = corpus[nb_para_train:nb_para_train + nb_para_dev_test]
-    dev_data = [word_to_id(wti_dict, y) for x in dev_data for y in x]
+    train_set = corpus[:end_train_set_index]
+    train_set = [word_to_id(wti_dict, word) for word in train_set]
 
-    test_data = corpus[nb_para_train + nb_para_dev_test:]
-    test_data = [word_to_id(wti_dict, y) for x in test_data for y in x]
+    dev_set = corpus[end_train_set_index:end_dev_set_index]
+    dev_set = [word_to_id(wti_dict, word) for word in dev_set]
 
-    return train_data, dev_data, test_data
+    test_set = corpus[end_dev_set_index:]
+    test_set = [word_to_id(wti_dict, word) for word in test_set]
+
+    return train_set, dev_set, test_set
 
 def load_corpus_as_sets(fullpath, wti_dict):
     corpus = clean_textfile(fullpath)
-    corpus = get_corpus_with_paragraph(corpus)
     return make_sets(corpus, wti_dict)
-
-
-def evaluate_recall(y_pred, labels, k=1):
-    num_examples = float(len(y_pred))
-    num_correct = 0
-    for preds, label in zip(y_pred, labels):
-        if label in preds[:k]:
-            num_correct += 1
-    return num_correct / num_examples
-
-def predict_random(utterances):
-    return np.random.choice(len(utterances),10, replace=False)
 
 def print_learningconfig():
     for subdir, dirs, files in os.walk('results'):

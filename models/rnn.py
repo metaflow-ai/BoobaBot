@@ -147,24 +147,12 @@ class RNN(object):
 
             with tf.variable_scope('Loss'):
                 y_true_reshaped = tf.reshape(self.y_plh, [-1])
-                # Sparse softmax handle for us the fact that y_true is an list of indices
+                # Sparse softmax handle for us the fact that y_true is a list of indices
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(outputs, y_true_reshaped)
 
                 self.total_loss = tf.reduce_mean(losses, name="total_loss")
-
-                tf.scalar_summary('Total_loss', self.total_loss)
-
-            self.train_summaries_op = tf.merge_all_summaries()
-
-            with tf.variable_scope('Accuracy'):
-                predictions = tf.cast(tf.argmax(outputs, 1, name="predictions"), tf.int32)
-                correct_predictions = tf.equal(predictions, y_true_reshaped)
-                self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32), name="accuracy")
-
-                acc_summary_op = tf.scalar_summary('Accuracy', self.accuracy)
-
-            self.dev_summaries_op = tf.merge_summary([acc_summary_op])
-            self.test_summaries_op = tf.merge_summary([acc_summary_op])
+                self.perplexity = tf.exp(self.total_loss)
+                tf.scalar_summary('Perplexity', self.perplexity)        
 
             with tf.variable_scope('Prediction'):
                 self.T_plh = tf.placeholder(tf.float32, shape=[], name='T_placeholder')
@@ -176,6 +164,19 @@ class RNN(object):
 
                 T_preds = tf.nn.softmax(outputs / self.T_plh)
                 self.random_pred = tf.multinomial(tf.log(T_preds), 1)
+
+            self.train_summaries_op = tf.merge_all_summaries()
+
+
+            with tf.variable_scope('Accuracy'):
+                predictions = tf.cast(tf.argmax(outputs, 1, name="predictions"), tf.int32)
+                correct_predictions = tf.equal(predictions, y_true_reshaped)
+                self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32), name="accuracy")
+
+                acc_summary_op = tf.scalar_summary('Accuracy', self.accuracy)
+
+            self.dev_summaries_op = tf.merge_summary([acc_summary_op])
+            self.test_summaries_op = tf.merge_summary([acc_summary_op])
 
             adam = tf.train.AdamOptimizer(self.lr)
             self.global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
