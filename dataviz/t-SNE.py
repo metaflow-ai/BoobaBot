@@ -141,7 +141,6 @@ if __name__ == "__main__":
 
     for X_tsne in X_tsnes:
         plot_embedding(X_tsne[0], X_tsne[1], mapping)
-        break
     # plot_embedding_k_mean(X_tsne, k_means_labels, k_means_cluster_centers)
 
 
