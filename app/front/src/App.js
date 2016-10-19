@@ -5,7 +5,7 @@ import update from 'react-addons-update';
 import request from 'superagent';
 
 import './App.css';
-import '../../node_modules/draft-js/dist/Draft.css'
+import '../node_modules/draft-js/dist/Draft.css'
 
 
 class App extends Component {
@@ -167,7 +167,7 @@ class App extends Component {
             <select name="kind" value={this.state.form.kind} onChange={this.onFormChange}>
               <option value="word">Word</option>
               <option value="sentence">Sentence</option>
-              <option value="paragraph">Paragraphs</option>
+              <option value="para">Paragraphs</option>
             </select>
           </div>
 
