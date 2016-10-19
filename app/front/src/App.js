@@ -16,6 +16,7 @@ class App extends Component {
     this.state = {
       editorState: EditorState.createEmpty(),
       form: {
+        input: "",
         number: 1,
         kind: 'words',
         temperature: 1,
@@ -54,6 +55,10 @@ class App extends Component {
     var url = "localhost:3001/api/predict"
     console.log(this.state.form)
 
+    var paragraphs = []
+    var lines = []
+    var finalText = ""
+
     this.setState({loading: true})
 
     request.post(url)
@@ -65,7 +70,21 @@ class App extends Component {
         } else {
           // now we should update the textarea with the completed version
           console.log('completing...')
-          this.addEditorText(res.text, false)
+
+          paragraphs = res.outputs.split(" <EOP> ")
+
+          for (var paragraph of paragraphs) {
+            lines = paragraph.split(" <EOL> ")
+
+            for (var line of lines) {
+              var l = line.trim()
+              l = l.replace(" ' ", "'")
+              l = l.replace(" , ", ", ")
+              finalText = `${finalText}${l.charAt(0).toUpperCase()}${l.slice(1)}\n`
+            }
+            finalText = `${finalText}\n`
+          }
+          this.addEditorText(finalText)
         }
       })
 
@@ -82,7 +101,8 @@ class App extends Component {
   // }
 
 
-  addEditorText(string, loading) {
+
+  addEditorText(string, loading = false) {
     const { editorState } = this.state
     const content = editorState.getCurrentContent()
     const selection = editorState.getSelection()
@@ -90,10 +110,10 @@ class App extends Component {
     const newContentState = Modifier.insertText(
       content,
       selection,
-      " " + string + " "
+      string
     )
 
-    const newEditorState = EditorState.push(editorState, newContentState, 'insert-fragment')
+    var newEditorState = EditorState.push(editorState, newContentState, 'insert-fragment')
 
     this.setState({
       editorState: newEditorState,
