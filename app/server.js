@@ -1,8 +1,11 @@
 import Express from 'express';
 import child_process from 'child_process';
 import bodyParser from 'body-parser';
+import cors from 'cors'
+
 
 const app = new Express();
+app.use(cors());
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 

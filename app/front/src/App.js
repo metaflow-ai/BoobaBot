@@ -5,7 +5,7 @@ import update from 'react-addons-update';
 import request from 'superagent';
 
 import './App.css';
-import '../node_modules/draft-js/dist/Draft.css'
+import '../../node_modules/draft-js/dist/Draft.css'
 
 
 class App extends Component {
@@ -57,7 +57,7 @@ class App extends Component {
     inputs = inputs.replace(/\n{2,}/g, " <EOP> ")
     inputs = inputs.replace(/\n{1}/g, " <EOL> ")
 
-    const url = "localhost:3001/api/predict"
+    const url = "http://127.0.0.1:3001/api/predict"
 
     var paragraphs = []
     var lines = []
@@ -75,12 +75,15 @@ class App extends Component {
           this.setState({error: true, errorMessage: err.message, loading: false})
         } else {
           // now we should update the textarea with the completed version
-          console.log('completing...')
 
-          paragraphs = res.output.split(" <EOP> ")
+
+          // console.log(res, res.text)
+          var jsonObject = JSON.parse(res.text)
+          // console.log(jsonObject)
+          paragraphs = jsonObject.output.split("<EOP>")
 
           for (var paragraph of paragraphs) {
-            lines = paragraph.split(" <EOL> ")
+            lines = paragraph.split("<EOL>")
 
             for (var line of lines) {
               var l = line.trim()
@@ -93,7 +96,6 @@ class App extends Component {
           this.addEditorText(finalText)
         }
       })
-
   }
 
 
