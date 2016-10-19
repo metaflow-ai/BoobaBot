@@ -8,7 +8,7 @@ dir = os.path.dirname(os.path.realpath(__file__))
 parser = argparse.ArgumentParser()
 # Training config
 parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
-parser.add_argument("--num_epochs", default=30, type=int, help="How many epochs should we train the RNN (default: %(default)s)")
+parser.add_argument("--num_epochs", default=20, type=int, help="How many epochs should we train the RNN (default: %(default)s)")
 parser.add_argument("--batch_size", default=32, type=int, help="Batch size (default: %(default)s)")
 parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate for the adam optimizer (default: %(default)s)")
 # Embedding config
