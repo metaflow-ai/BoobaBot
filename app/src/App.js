@@ -1,5 +1,8 @@
 import React, { Component } from 'react';
 import { Editor, EditorState, Modifier } from 'draft-js';
+import update from 'react-addons-update';
+
+import request from 'superagent';
 
 import './App.css';
 import '../node_modules/draft-js/dist/Draft.css'
@@ -12,33 +15,74 @@ class App extends Component {
 
     this.state = {
       editorState: EditorState.createEmpty(),
+      form: {
+        number: 1,
+        kind: 'words',
+        temperature: 1,
+        random: false,
+        topk: 1,
+      },
+      loading: false,
+      error: false,
+      errorMessage: ""
     }
 
     this.focus = () => this.refs.editor.focus()
     this.onChange = this.onChange.bind(this)
-    this.handleBeforeInput = this.handleBeforeInput.bind(this)
-    this.selectProposal = this.selectProposal.bind(this)
+    this.onFormChange = this.onFormChange.bind(this)
+    this.submitForm = this.submitForm.bind(this)
+    // this.handleBeforeInput = this.handleBeforeInput.bind(this)
+    this.addEditorText = this.addEditorText.bind(this)
   }
 
 
   onChange(editorState) {
-    this.setState({editorState}, () => {
-      this.focus()
-    })
+    this.setState({editorState})
   }
 
 
-  handleBeforeInput(lastChar) {
-    if (lastChar === ' ') {
-      this.selectProposal('ALO')
-      return true
-    }
+  onFormChange(e) {
+    var name = e.target.name
+    var val = e.target.value
 
-    return false
+    var newState = update(this.state, {form: {[name]: {$set: val}}})
+    this.setState(newState)
   }
 
 
-  selectProposal(str) {
+  submitForm(e) {
+    var url = "localhost:3001/api/predict"
+    console.log(this.state.form)
+
+    this.setState({loading: true})
+
+    request.post(url)
+      .set('Content-Type', 'application/json')
+      .send(this.state.form)
+      .end((err, res) => {
+        if (err) {
+          this.setState({error: true, errorMessage: err.message, loading: false})
+        } else {
+          // now we should update the textarea with the completed version
+          console.log('completing...')
+          this.addEditorText(res.text, false)
+        }
+      })
+
+  }
+
+
+  // handleBeforeInput(lastChar) {
+  //   if (lastChar === ' ') {
+  //     this.selectProposal(' ') // Just to give it a try
+  //     return true
+  //   }
+
+  //   return false
+  // }
+
+
+  addEditorText(string, loading) {
     const { editorState } = this.state
     const content = editorState.getCurrentContent()
     const selection = editorState.getSelection()
@@ -46,12 +90,15 @@ class App extends Component {
     const newContentState = Modifier.insertText(
       content,
       selection,
-      str + " "
+      " " + string + " "
     )
 
     const newEditorState = EditorState.push(editorState, newContentState, 'insert-fragment')
 
-    this.onChange(newEditorState)
+    this.setState({
+      editorState: newEditorState,
+      loading: loading
+    })
   }
 
 
@@ -70,11 +117,52 @@ class App extends Component {
             handleBeforeInput={this.handleBeforeInput}
             onChange={this.onChange}
           />
-          <div id="buttons">
-            <a href="#" onClick={this.selectProposal.bind(this, 'prop1')}>Prop 1</a>
-            <a href="#" onClick={this.selectProposal.bind(this, 'prop2')}>Prop 2</a>
-            <a href="#" onClick={this.selectProposal.bind(this, 'prop3')}>Prop 3</a>
+        </div>
+
+        <div id="options">
+
+          <div className="form-group">
+            <label htmlFor="random">
+              <input type="checkbox" name="random" value={this.state.form.random} onChange={this.onFormChange}/>
+              Random?
+            </label>
+
+            <label htmlFor="temperature">
+              <input type="text" name="temperature" value={this.state.form.temperature} onChange={this.onFormChange}/>
+              Temperature
+            </label>
+
+            <label htmlFor="topk">
+              <input type="text" name="topk" value={this.state.form.topk} onChange={this.onFormChange}/>
+              Top-K
+            </label>
+
           </div>
+
+          <div className="form-group">
+            <input
+              type="text"
+              name="number"
+              value={this.state.form.number}
+              onChange={this.onFormChange}
+            />
+
+            <select name="kind" value={this.state.form.kind} onChange={this.onFormChange}>
+              <option value="word">Word</option>
+              <option value="sentence">Sentence</option>
+              <option value="paragraph">Paragraphs</option>
+            </select>
+          </div>
+
+          {this.state.error ? (
+            <div className="form-error">Error: {this.state.errorMessage}</div>
+          ) : ""}
+
+          { this.state.loading ? (
+            <div className="submit-form">Loading...</div>
+          ) : (
+            <button className="submit-form" type="submit" onClick={this.submitForm}>Valider</button>
+          )}
         </div>
       </div>
     );
