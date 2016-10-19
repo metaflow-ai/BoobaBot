@@ -16,7 +16,6 @@ class App extends Component {
     this.state = {
       editorState: EditorState.createEmpty(),
       form: {
-        input: "",
         number: 1,
         kind: 'words',
         temperature: 1,
@@ -52,18 +51,26 @@ class App extends Component {
 
 
   submitForm(e) {
-    var url = "localhost:3001/api/predict"
-    console.log(this.state.form)
+    const { editorState } = this.state
+    const content = editorState.getCurrentContent()
+    var inputs = content.getPlainText()
+
+    inputs = inputs.replace(/\n{2,}/g, " <EOP> ")
+    inputs = inputs.replace(/\n{1}/g, " <EOL> ")
+
+    const url = "localhost:3001/api/predict"
 
     var paragraphs = []
     var lines = []
     var finalText = ""
 
+    var args = update(this.state.form, {inputs: {$set: inputs}})
+
     this.setState({loading: true})
 
     request.post(url)
       .set('Content-Type', 'application/json')
-      .send(this.state.form)
+      .send(args)
       .end((err, res) => {
         if (err) {
           this.setState({error: true, errorMessage: err.message, loading: false})
@@ -78,8 +85,8 @@ class App extends Component {
 
             for (var line of lines) {
               var l = line.trim()
-              l = l.replace(" ' ", "'")
-              l = l.replace(" , ", ", ")
+              l = l.replace(/ ' /g, "'")
+              l = l.replace(/ , /g, ", ")
               finalText = `${finalText}${l.charAt(0).toUpperCase()}${l.slice(1)}\n`
             }
             finalText = `${finalText}\n`
