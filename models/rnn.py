@@ -244,25 +244,50 @@ class RNN(object):
 
         return avg_acc
 
-    def predict(self, words, T=1., random=False, sentence=False, top_k=1):
-        x = [word_to_id(self.word_to_id_dict, word) for word in words]
-        outputs = []
+    def predict(self, inputs, config={}):
+        random = config.get('random', False) 
+        T = config.get('T', 1.)
+        top_k = config.get('top_k', 1)
+        nb_word = config.get('nb_word', -1)
+        nb_sentence = config.get('nb_sentence', 1)
+        nb_para = min(config.get('nb_para', 1), 4)
 
+        eol_token_id = word_to_id(self.word_to_id_dict, '<EOL>')
+        eop_token_id = word_to_id(self.word_to_id_dict, '<EOP>')
+
+        print(random, T, top_k, nb_word, nb_sentence, nb_para, eol_token_id, eop_token_id)
+
+        x = [word_to_id(self.word_to_id_dict, word) for word in inputs]
+        outputs = []
         with tf.Session(graph=self.graph) as sess:
             self.restore(sess)
 
             final_state = None
-
-            if sentence is True:
-                end_word = word_to_id(self.word_to_id_dict, ".")
+            if top_k == 1:
                 y = x
 
-                max_number_of_word = 50
-                i = 0
-                while y[-1] != end_word and i < max_number_of_word:
-                    i += 1
+                should_continue = True
+                nb_word_predicted = 0
+                nb_sentence_predicted = 0
+                nb_para_predicted = 0
+                while should_continue:
                     y, final_state = self.__predict_word(sess, [y], init_state=final_state, T=T, random=random)
-                    outputs.append(y[-1])
+                    predicted_token_id = y[-1]
+                    outputs.append(predicted_token_id)
+
+                    if predicted_token_id == eol_token_id:
+                        nb_sentence_predicted += 1
+                    elif predicted_token_id == eop_token_id:
+                        nb_para_predicted += 1
+                    else:
+                        nb_word_predicted += 1
+
+                    if nb_word > 0 and nb_word_predicted >= nb_word:
+                        should_continue = False
+                    elif nb_sentence > 0 and nb_sentence_predicted >= nb_sentence:
+                        should_continue = False
+                    elif nb_para_predicted >= nb_para:
+                        should_continue = False
             else:
                 y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random, top_k=top_k)
                 outputs = y
@@ -276,7 +301,7 @@ class RNN(object):
             self.T_plh: T,
             self.top_k: top_k
         }
-        if init_state != None:
+        if init_state is not None:
             feed_dict[self.init_state] = init_state
 
         if random is True:
