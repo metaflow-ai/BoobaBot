@@ -31,7 +31,6 @@ class App extends Component {
     this.onChange = this.onChange.bind(this)
     this.onFormChange = this.onFormChange.bind(this)
     this.submitForm = this.submitForm.bind(this)
-    // this.handleBeforeInput = this.handleBeforeInput.bind(this)
     this.addEditorText = this.addEditorText.bind(this)
   }
 
@@ -78,7 +77,7 @@ class App extends Component {
           // now we should update the textarea with the completed version
           console.log('completing...')
 
-          paragraphs = res.outputs.split(" <EOP> ")
+          paragraphs = res.output.split(" <EOP> ")
 
           for (var paragraph of paragraphs) {
             lines = paragraph.split(" <EOL> ")
@@ -96,17 +95,6 @@ class App extends Component {
       })
 
   }
-
-
-  // handleBeforeInput(lastChar) {
-  //   if (lastChar === ' ') {
-  //     this.selectProposal(' ') // Just to give it a try
-  //     return true
-  //   }
-
-  //   return false
-  // }
-
 
 
   addEditorText(string, loading = false) {
