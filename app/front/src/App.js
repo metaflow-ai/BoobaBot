@@ -44,6 +44,10 @@ class App extends Component {
     var name = e.target.name
     var val = e.target.value
 
+    if (e.target.getAttribute('type') === 'checkbox') {
+      val = e.target.checked
+    }
+
     var newState = update(this.state, {form: {[name]: {$set: val}}})
     this.setState(newState)
   }
