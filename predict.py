@@ -34,7 +34,7 @@ if args.use_server is True:
 
 rnn = RNN(config)
 y = rnn.predict(input_words, config)
-print('__BBB_START__') 
+print('__BBB_START__') # Marker for the Regexp used in the App, do not remove
 json = json.dumps({
     'config': {
         'inputs': args.inputs,

@@ -23,6 +23,7 @@ launch the app:
 ```bash
 cd app
 npm install
+cd front && npm install && cd ..
 npm start
 ```
 
