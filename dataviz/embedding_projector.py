@@ -1,3 +1,9 @@
+######################################################
+#                                                    #
+# !!! This script needs at least tensorflow 0.12 !!! # 
+#                                                    #
+######################################################
+
 import os, argparse, json, time
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
