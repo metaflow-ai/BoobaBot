@@ -35,8 +35,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Training config
-    parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
-    parser.add_argument("--profiling", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
+    parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="Debug mode (default: %(default)s)")
+    parser.add_argument("--profiling", nargs="?", const=True, default=False, type=bool, help="Profiling mode, output a timeline readable inside chrome (default: %(default)s)")
     parser.add_argument("--num_epochs", default=20, type=int, help="How many epochs should we train the RNN (default: %(default)s)")
     parser.add_argument("--batch_size", default=32, type=int, help="Batch size (default: %(default)s)")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate for the adam optimizer (default: %(default)s)")
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument("--seq_length", default=32, type=int, help="RNN sequence length (default: %(default)s)")
     parser.add_argument("--state_size", default=256, type=int, help="RNN state size (default: %(default)s)")
     parser.add_argument("--num_layers", default=1, type=int, help="How deep is the RNN (default: %(default)s)")
-    parser.add_argument("--tye_embedding", nargs="?", const=True, default=False, type=bool, help="Tye word embedding weights to compute the outputs value (default: %(default)s)")
+    parser.add_argument("--tye_embedding", nargs="?", const=True, default=False, type=bool, help="Tye input/output word embedding weights (default: %(default)s)")
 
     args = parser.parse_args()
     main(args)

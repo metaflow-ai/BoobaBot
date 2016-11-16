@@ -64,14 +64,14 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
-    parser.add_argument("--random_search", nargs="?", const=True, default=False, type=bool, help="Procede to a random search (default: %(default)s)")
-    parser.add_argument("--textfile", default=dir + '/crawler/data/results.txt', type=str, help="The textfile used to train GloVe (default: %(default)s)")
+    parser.add_argument("--debug", nargs="?", const=True, default=False, type=bool, help="Debug mode (default: %(default)s)")
+    parser.add_argument("--random_search", nargs="?", const=True, default=False, type=bool, help="Procede to a random search for hyperparameters tuning (default: %(default)s)")
+    parser.add_argument("--textfile", default=dir + '/crawler/data/results.txt', type=str, help="The textfile to use build the corpus (default: %(default)s)")
     parser.add_argument("--embedding_size", default=200, type=int, help="Embedding size (default: %(default)s)")
     parser.add_argument("--context_size", default=10, type=int, help="Number of words to use for context (default: %(default)s)")
     parser.add_argument("--num_epochs", default=20, type=int, help="How many epochs should we train the GloVe (default: %(default)s)")
     parser.add_argument("--nb_search_iter", default=10, type=int, help="Batch size (default: %(default)s)")
-    parser.add_argument("--stem", nargs="?", const=True, default=False, type=bool, help="debug mode (default: %(default)s)")
+    parser.add_argument("--stem", nargs="?", const=True, default=False, type=bool, help="Should we stem words? (default: %(default)s)")
     args = parser.parse_args()
 
     main(args)
