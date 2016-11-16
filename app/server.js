@@ -34,7 +34,7 @@ app.post("/api/predict", (req, res) => {
   }
 
   // Build cmd
-  let cmd = `cd .. && python predict-rnn.py --model_dir ${model_dir} --inputs "${inputs}"`;
+  let cmd = `cd .. && python predict.py --model_dir ${model_dir} --inputs "${inputs}"`;
   for (var key in cmdParams) {
     if (cmdParams.hasOwnProperty(key)) {
       cmd += ` --${key} ${cmdParams[key]}`;

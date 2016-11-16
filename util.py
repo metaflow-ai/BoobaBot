@@ -94,7 +94,7 @@ def make_sets(corpus, wti_dict, dev_test_size=0.1):
     counter.update(corpus)
     
     nb_para = counter['<EOP>']
-    nb_para_dev_test = int(nb_para * dev_test_size)
+    nb_para_dev_test = max(int(nb_para * dev_test_size), 1)
     nb_para_train = nb_para - 2 * nb_para_dev_test
 
     para_indexes = [i for i,word in enumerate(corpus) if word == '<EOP>']
