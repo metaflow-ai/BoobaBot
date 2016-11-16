@@ -1,7 +1,7 @@
 from sklearn import (manifold, decomposition, cluster)
 import numpy as np
 import tensorflow as tf
-import json, pprint, matplotlib, os, argparse, collections
+import json, matplotlib, os, argparse, collections
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
