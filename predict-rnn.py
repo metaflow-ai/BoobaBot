@@ -13,8 +13,9 @@ parser.add_argument("--random", nargs="?", const=True, default=False, type=bool,
 parser.add_argument("--temperature", default=1., type=float, help="The temperature for prediction (default: %(default)s)")
 parser.add_argument("--top_k", default=1, type=int, help="Return the top K prediction (default: %(default)s)")
 parser.add_argument("--nb_word", default=-1, type=int, help="How many words should it return (default: %(default)s, -1: no limit)")
-parser.add_argument("--nb_sentence", default=1, type=int, help="How many lines should it return (default: %(default)s, -1: no limit)")
+parser.add_argument("--nb_sentence", default=-1, type=int, help="How many lines should it return (default: %(default)s, -1: no limit)")
 parser.add_argument("--nb_para", default=1, type=int, help="How many para should it return (default: %(default)s, -1: no limit)")
+parser.add_argument('--use_server', nargs="?", const=True, default=False, type=bool, help='Should use the Server architecture')
 args = parser.parse_args()
 
 results_dir = dir + '/results'
@@ -25,6 +26,11 @@ config['log_dir'] = rnn_dir
 config['restore_embedding'] = False
 config['seq_length'] = None
 input_words = clean_text(config['inputs'])
+if args.use_server is True:
+    with open('clusterSpec.json') as f:
+        clusterSpec = json.load(f)
+    config['target'] = 'grpc://' + clusterSpec['server'][0]
+    pass
 
 rnn = RNN(config)
 y = rnn.predict(input_words, config)

@@ -53,6 +53,7 @@ crawler/data/raw_results.*
 dataviz/old
 dataviz/env
 dataviz/data
+dataviz/results
 *.eps
 
 # App Node.JS

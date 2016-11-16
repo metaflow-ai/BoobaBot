@@ -1,6 +1,6 @@
-import re, os, json
+import re, os, json, operator, functools
 import numpy as np
-from collections import Counter
+from collections import Counter, deque
 
 from nltk.stem.snowball import FrenchStemmer, SnowballStemmer
 from nltk.tokenize import WordPunctTokenizer
@@ -125,3 +125,19 @@ def print_learningconfig():
                 with open(path) as jsonData:
                     data = json.load(jsonData)
                     print(data['config'])
+
+def get_nb_parameters(tf_var_list):
+    nb_params = 0
+    for t_var in tf_var_list:
+        shape = t_var.get_shape().as_list()
+        if type(shape[0]) != int:
+            shape.pop(0)    
+        nb_params += get_nb_elements_from_shape(shape)
+
+    return nb_params
+
+def get_nb_elements_from_shape(shape):
+    if len(shape) == 0:
+        return 0
+
+    return functools.reduce(operator.mul, shape)

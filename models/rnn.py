@@ -7,6 +7,7 @@ import sys, time, json, os
 
 import tensorflow as tf
 from tensorflow.models.rnn.ptb import reader
+from tensorflow.python.client import timeline
 
 from util import word_to_id
 
@@ -22,6 +23,9 @@ class RNN(object):
         self.num_epochs = config.get('num_epochs', 20)
         self.batch_size = config.get('batch_size', 32)
         self.lr = config.get('lr', 1e-3)
+        self.target = config.get('target', '')
+        if self.target != '':
+            print('Using server at %s' % self.target)
 
         # Embedding config
         self.train_glove = config.get('train_glove', False)
@@ -57,6 +61,10 @@ class RNN(object):
                 self.state_size = self.embedding_size
 
         self.graph = tf.Graph()
+        # Profiling options
+        self.profiling = config.get('profiling', True)
+        self.run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        self.run_metadata = tf.RunMetadata()
         self.build()
 
     def load_rnn_config_from_file(self, config_filepath):
@@ -218,10 +226,22 @@ class RNN(object):
 
     def train_step(self, sess, x_batch, y_batch):
         to_compute = [self.train_op, self.train_summaries_op, self.total_loss, self.global_step]
-        return sess.run(to_compute, feed_dict={
-            self.x_plh: x_batch,
-            self.y_plh: y_batch
-        })
+        if self.profiling is True:
+            return sess.run(
+                to_compute, 
+                feed_dict={
+                    self.x_plh: x_batch,
+                    self.y_plh: y_batch
+                },
+                options=self.run_options,
+                run_metadata=self.run_metadata
+            )
+        else:
+            return sess.run(to_compute, feed_dict={
+                self.x_plh: x_batch,
+                self.y_plh: y_batch
+            })
+        
 
     def dev_step(self, sess, x_batch, y_batch):
         to_compute = self.dev_summaries_op
@@ -255,11 +275,12 @@ class RNN(object):
         eol_token_id = word_to_id(self.word_to_id_dict, '<EOL>')
         eop_token_id = word_to_id(self.word_to_id_dict, '<EOP>')
 
-        print(random, T, top_k, nb_word, nb_sentence, nb_para, eol_token_id, eop_token_id)
-
         x = [word_to_id(self.word_to_id_dict, word) for word in inputs]
         outputs = []
-        with tf.Session(graph=self.graph) as sess:
+
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+        sess_config = tf.ConfigProto(gpu_options=gpu_options)
+        with tf.Session(target=self.target, graph=self.graph, config=sess_config) as sess:
             self.restore(sess)
 
             final_state = None
@@ -345,6 +366,12 @@ class RNN(object):
         if not os.path.isfile(config_filepath):
             with open(config_filepath, 'w') as f:
                 json.dump(config, f)
+
+        if self.profiling is True:
+            trace = timeline.Timeline(self.run_metadata.step_stats)
+            ctf = trace.generate_chrome_trace_format()
+            with open(self.log_dir + '/timeline.ctf.json', 'w') as f:
+                f.write(ctf)
 
     def restore(self, sess):
         print('loading model')
