@@ -8,7 +8,7 @@ app.use(cors());
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true, }));
 
-const port = process.env.API_PORT || 3001;
+const port = process.env.API_PORT || 5000;
 const env = process.env.NODE_ENV || "prod";
 
 const model_dir = "results/rnn/1476859465";
@@ -57,7 +57,6 @@ app.post("/api/predict", (req, res) => {
     }
 
     const boobabotJson = re.exec(stdout)[1].trim();
-    // console.log(boobabotJson);
     res.json(JSON.parse(boobabotJson));
   });
 

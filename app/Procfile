@@ -1,2 +1,2 @@
 web: cd front && npm start
-api: npm run server
+api: npm run python-server

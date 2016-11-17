@@ -61,6 +61,9 @@ class RNN(object):
                 self.state_size = self.embedding_size
 
         self.graph = tf.Graph()
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+        self.sess_config = tf.ConfigProto(gpu_options=gpu_options)
+        self.sess = None
         # Profiling options
         self.profiling = config.get('profiling', True)
         self.run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
@@ -192,6 +195,13 @@ class RNN(object):
 
             self.saver = tf.train.Saver()
 
+    def start_session(self):
+        self.sess  = tf.Session(target=self.target, graph=self.graph, config=self.sess_config)
+        self.restore(self.sess)
+
+    def close_session(self):
+        self.sess.close()
+
     def fit(self, train_data, dev_data):
         dev_iterator = reader.ptb_iterator(dev_data, self.batch_size, self.seq_length)
         x_dev_batch, y_dev_batch = next(dev_iterator)
@@ -265,6 +275,11 @@ class RNN(object):
         return avg_acc
 
     def predict(self, inputs, config={}):
+        tmp_session = False
+        if self.sess == None:
+            tmp_session = True
+            self.start_session()
+
         random = config.get('random', False) 
         T = config.get('T', 1.)
         top_k = config.get('top_k', 1)
@@ -278,41 +293,39 @@ class RNN(object):
         x = [word_to_id(self.word_to_id_dict, word) for word in inputs]
         outputs = []
 
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
-        sess_config = tf.ConfigProto(gpu_options=gpu_options)
-        with tf.Session(target=self.target, graph=self.graph, config=sess_config) as sess:
-            self.restore(sess)
+        final_state = None
+        if top_k == 1:
+            y = x
 
-            final_state = None
-            if top_k == 1:
-                y = x
+            should_continue = True
+            nb_word_predicted = 0
+            nb_sentence_predicted = 0
+            nb_para_predicted = 0
+            while should_continue:
+                y, final_state = self.__predict_word(self.sess, [y], init_state=final_state, T=T, random=random)
+                predicted_token_id = y[-1]
+                outputs.append(predicted_token_id)
 
-                should_continue = True
-                nb_word_predicted = 0
-                nb_sentence_predicted = 0
-                nb_para_predicted = 0
-                while should_continue:
-                    y, final_state = self.__predict_word(sess, [y], init_state=final_state, T=T, random=random)
-                    predicted_token_id = y[-1]
-                    outputs.append(predicted_token_id)
+                if predicted_token_id == eol_token_id:
+                    nb_sentence_predicted += 1
+                elif predicted_token_id == eop_token_id:
+                    nb_para_predicted += 1
+                else:
+                    nb_word_predicted += 1
 
-                    if predicted_token_id == eol_token_id:
-                        nb_sentence_predicted += 1
-                    elif predicted_token_id == eop_token_id:
-                        nb_para_predicted += 1
-                    else:
-                        nb_word_predicted += 1
-
-                    if nb_word > 0 and nb_word_predicted >= nb_word:
-                        should_continue = False
-                    elif nb_sentence > 0 and nb_sentence_predicted >= nb_sentence:
-                        should_continue = False
-                    elif nb_para_predicted >= nb_para:
-                        should_continue = False
-            else:
-                y, final_state = self.__predict_word(sess, [x], init_state=final_state, T=T, random=random, top_k=top_k)
-                outputs = y
+                if nb_word > 0 and nb_word_predicted >= nb_word:
+                    should_continue = False
+                elif nb_sentence > 0 and nb_sentence_predicted >= nb_sentence:
+                    should_continue = False
+                elif nb_para_predicted >= nb_para:
+                    should_continue = False
+        else:
+            y, final_state = self.__predict_word(self.sess, [x], init_state=final_state, T=T, random=random, top_k=top_k)
+            outputs = y
         outputs = [self.id_to_word_dict[id] for id in outputs]
+
+        if tmp_session:
+            self.close_session()
         return outputs
 
 

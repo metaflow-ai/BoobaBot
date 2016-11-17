@@ -61,7 +61,7 @@ class App extends Component {
     inputs = inputs.replace(/\n{2,}/g, " <EOP> ")
     inputs = inputs.replace(/\n{1}/g, " <EOL> ")
 
-    const url = "http://127.0.0.1:3001/api/predict"
+    const url = "http://127.0.0.1:5000/api/predict"
 
     var paragraphs = []
     var lines = []
