@@ -3,6 +3,8 @@
 
 A very tiny and simple app using React and draft-js to power a very simple auto-complete editor for our A.I. backend
 
+* **Disclaimer:** This app is not user friendly at all, it's more a proof of concept to use tensorflow in a server-like architecture*
+
 ## How to start the App
 ### Installing all depedencies
 **First, make sure you ran the script to download the default RNN model weights**

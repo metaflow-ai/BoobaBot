@@ -18,7 +18,7 @@ if __name__ == "__main__":
     parser.add_argument("--glove_dir", default="results/glove", type=str, help="glove dir (default: %(default)s)")
     args = parser.parse_args()
 
-    glove_dir = dir + '/../' + args.glove_dir
+    glove_dir = dir + '/' + args.glove_dir
     glove_name = args.glove_dir.split('/')[-1]
     if glove_name == '':
         glove_name = args.glove_dir.split('/')[-2]

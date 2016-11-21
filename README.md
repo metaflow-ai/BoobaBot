@@ -7,24 +7,11 @@ For more techy people: this is a basic GloVe embedding using LSTM best practices
 
 You can also train your own bot on a different corpus to potentially create whatever artiste you'd like (rock and roll, law, poems, etc.)
 
-## Let's make him rap baby!
-Install depedencies
+* **Disclaimer:** The weights are not provided with the model *
+## Installation
+**Install depedencies**
 ```bash
 pip install -r requirements.txt
-```
-
-Download the weights
-```bash
-# From the results directory
-./download_weights.sh
-```
-launch the app:
-**You have more information into the app folder [README.md file](app/README.md)**
-```bash
-cd app
-npm install
-cd front && npm install && cd ..
-npm start
 ```
 
 ## How to train it
@@ -53,6 +40,23 @@ You can train your model on a corpus using the `train.py` script with those opti
 - **state_size**: RNN state size
 - **num_layers**: How deep is the RNN
 - **tye_embedding**: Tye input/output word embedding weights 
+
+## Let's make him rap baby!
+Before make him rap, you need to train the model (see previous point).
+
+You can make your model rap using the `predict.py` script with those options:
+- **debug**: Debug mode 
+- **model_dir**: The trained RNN dir
+- **inputs**: Choose the beginning of the predicted sentence (see this as an initialization)
+- **random**: Add some randomness, predict using temperature
+- **temperature**: The temperature for predictions
+- **top_k**: Return the top K prediction
+- **nb_word**: How many words should it return
+- **nb_sentence**: How many lines should it return
+- **nb_para**: How many paragraph should it return
+
+## launch the app:
+**See the [README.md file](app/README.md) in the app folder **
 
 ## Running tests
 ```bash
