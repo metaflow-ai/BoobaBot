@@ -7,7 +7,8 @@ For more techy people: this is a basic GloVe embedding using LSTM best practices
 
 You can also train your own bot on a different corpus to potentially create whatever artiste you'd like (rock and roll, law, poems, etc.)
 
-* **Disclaimer:** The weights are not provided with the model *
+**Disclaimer:** *The weights are not provided with the model*
+
 ## Installation
 **Install depedencies**
 ```bash
